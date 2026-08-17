@@ -23,13 +23,18 @@ export const dynamic = 'force-dynamic';
  */
 export const GET = withErrorHandling(
   async (req: NextRequest, { params }: { params: Promise<{ jenis: string; id: string }> }) => {
-    const guard = await requireRole('produksi', 'keuangan');
-    if ('error' in guard) return guard.error;
-
     const { jenis, id } = await params;
     if (!isTransactionDocType(jenis)) {
       return NextResponse.json({ error: 'Jenis dokumen tidak dikenal.' }, { status: 404 });
     }
+
+    // Dokumen kepegawaian memuat gaji perorangan, jadi aksesnya lebih sempit
+    // daripada lembar kerja produksi seperti SPK dan kartu servis.
+    const personnelDoc = jenis === 'slip-gaji' || jenis === 'kontrak-kerja';
+    const guard = personnelDoc
+      ? await requireRole('keuangan')
+      : await requireRole('produksi', 'keuangan');
+    if ('error' in guard) return guard.error;
 
     const format = new URL(req.url).searchParams.get('format') === 'pdf' ? 'pdf' : 'doc';
 

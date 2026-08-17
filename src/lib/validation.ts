@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import {
   CAPITAL_TYPES,
+  EMPLOYEE_STATUSES,
+  EMPLOYMENT_TYPES,
   EXPENSE_CATEGORIES,
   ITEM_KINDS,
   JOB_TYPES,
@@ -358,14 +360,35 @@ export const capitalSchema = z.object({
 
 /* --- Penggajian ---------------------------------------------------------- */
 
+export const divisionSchema = z.object({
+  name: z.string().trim().min(2, 'Nama bagian minimal 2 karakter').max(60),
+  description: optionalText(200),
+  active: z.boolean().default(true)
+});
+
 export const employeeSchema = z.object({
   employeeNumber: optionalText(30),
   name: z.string().trim().min(2, 'Nama karyawan minimal 2 karakter').max(100),
   position: optionalText(60),
-  division: optionalText(60),
+  divisionId: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((v) => (v ? v : null)),
   phone: optionalText(30),
+  address: optionalText(250),
+  idNumber: optionalText(30),
   bankAccount: optionalText(60),
+  employmentType: z.enum(EMPLOYMENT_TYPES).default('tetap'),
+  status: z.enum(EMPLOYEE_STATUSES).default('aktif'),
+  joinDate: dateInput,
+  contractNumber: optionalText(50),
+  contractStart: dateInput,
+  contractEnd: dateInput,
   baseSalaryIdr: z.number().int().min(0).max(100_000_000_000).default(0),
+  dailyRateIdr: z.number().int().min(0).max(100_000_000_000).default(0),
+  notes: optionalText(300),
   active: z.boolean().default(true)
 });
 

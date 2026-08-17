@@ -203,6 +203,41 @@ export const CAPITAL_TYPE_LABEL: Record<CapitalType, string> = {
   penarikan: 'Penarikan / Prive'
 };
 
+/* --- Kepegawaian --------------------------------------------------------- */
+
+export const EMPLOYMENT_TYPES = ['tetap', 'kontrak', 'harian', 'borongan', 'magang'] as const;
+export type EmploymentType = (typeof EMPLOYMENT_TYPES)[number];
+
+export const EMPLOYMENT_TYPE_LABEL: Record<EmploymentType, string> = {
+  tetap: 'Karyawan Tetap',
+  kontrak: 'Kontrak (PKWT)',
+  harian: 'Harian Lepas',
+  borongan: 'Borongan',
+  magang: 'Magang'
+};
+
+/** Upah borongan dan harian tidak terikat gaji bulanan tetap. */
+export const MONTHLY_SALARY_TYPES: EmploymentType[] = ['tetap', 'kontrak'];
+
+export const EMPLOYEE_STATUSES = ['aktif', 'cuti', 'nonaktif'] as const;
+export type EmployeeStatus = (typeof EMPLOYEE_STATUSES)[number];
+
+export const EMPLOYEE_STATUS_LABEL: Record<EmployeeStatus, string> = {
+  aktif: 'Aktif',
+  cuti: 'Cuti',
+  nonaktif: 'Nonaktif / Keluar'
+};
+
+/** Bagian bawaan bengkel, dipakai saat master bagian masih kosong. */
+export const DIVISION_PRESETS = [
+  { name: 'Karoseri', description: 'Rangka, plat bodi, dan perakitan unit.' },
+  { name: 'Body Repair', description: 'Ketok, dempul, dan perbaikan panel.' },
+  { name: 'Pengecatan', description: 'Epoxy, cat, poles, dan finishing.' },
+  { name: 'Servis Mesin', description: 'Tune up, ganti oli, turun mesin.' },
+  { name: 'Kelistrikan & AC', description: 'Instalasi kabel, lampu, dan AC.' },
+  { name: 'Keuangan & Administrasi', description: 'Kasir, pembukuan, dan arsip.' }
+];
+
 /* --- Penggajian ---------------------------------------------------------- */
 
 /**

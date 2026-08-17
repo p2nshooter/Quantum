@@ -2,6 +2,8 @@ import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqli
 import { sql } from 'drizzle-orm';
 import type {
   CapitalType,
+  EmployeeStatus,
+  EmploymentType,
   ExpenseCategory,
   ItemKind,
   JobType,
@@ -436,18 +438,51 @@ export const capitalEntries = sqliteTable(
 
 /* --- Penggajian ---------------------------------------------------------- */
 
-export const employees = sqliteTable('employees', {
+/** Bagian/departemen bengkel — master sendiri agar bisa ditambah tanpa deploy. */
+export const divisions = sqliteTable('divisions', {
   id: text('id').primaryKey(),
-  employeeNumber: text('employee_number'),
-  name: text('name').notNull(),
-  position: text('position'),
-  division: text('division'),
-  phone: text('phone'),
-  bankAccount: text('bank_account'),
-  baseSalaryIdr: integer('base_salary_idr').notNull().default(0),
+  name: text('name').notNull().unique(),
+  description: text('description'),
   active: integer('active', { mode: 'boolean' }).notNull().default(true),
   ...timestamps
 });
+
+export const employees = sqliteTable(
+  'employees',
+  {
+    id: text('id').primaryKey(),
+    employeeNumber: text('employee_number'),
+    name: text('name').notNull(),
+    position: text('position'),
+    /** Nama bagian disalin, bukan hanya id, supaya slip gaji lama tetap terbaca
+     *  apa adanya walau bagiannya nanti diganti nama atau dihapus. */
+    division: text('division'),
+    divisionId: text('division_id').references(() => divisions.id),
+    phone: text('phone'),
+    address: text('address'),
+    idNumber: text('id_number'),
+    bankAccount: text('bank_account'),
+
+    /* Kepegawaian & kontrak kerja */
+    employmentType: text('employment_type').$type<EmploymentType>().notNull().default('tetap'),
+    status: text('status').$type<EmployeeStatus>().notNull().default('aktif'),
+    joinDate: integer('join_date', { mode: 'timestamp_ms' }),
+    contractNumber: text('contract_number'),
+    contractStart: integer('contract_start', { mode: 'timestamp_ms' }),
+    contractEnd: integer('contract_end', { mode: 'timestamp_ms' }),
+
+    baseSalaryIdr: integer('base_salary_idr').notNull().default(0),
+    /** Upah harian/borongan untuk yang tidak bergaji bulanan. */
+    dailyRateIdr: integer('daily_rate_idr').notNull().default(0),
+    notes: text('notes'),
+    active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    ...timestamps
+  },
+  (t) => ({
+    divisionIdx: index('employees_division_idx').on(t.divisionId),
+    statusIdx: index('employees_status_idx').on(t.status)
+  })
+);
 
 /**
  * Satu baris = satu slip gaji.

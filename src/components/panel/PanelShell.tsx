@@ -23,7 +23,8 @@ const NAV: NavItem[] = [
   { href: '/panel/pelanggan', label: 'Pelanggan', icon: '🤝', roles: ['admin', 'produksi', 'keuangan'] },
   { href: '/panel/model', label: 'Model Bodi', icon: '📐', roles: ['admin', 'produksi'] },
   { href: '/panel/penawaran', label: 'Permintaan Penawaran', icon: '📨', roles: ['admin', 'produksi', 'keuangan'] },
-  { href: '/panel/penggajian', label: 'Penggajian', icon: '🧑‍🔧', roles: ['admin', 'keuangan'] },
+  { href: '/panel/karyawan', label: 'Karyawan', icon: '🧑‍🔧', roles: ['admin', 'keuangan', 'bos', 'produksi'] },
+  { href: '/panel/penggajian', label: 'Penggajian', icon: '💰', roles: ['admin', 'keuangan'] },
   { href: '/panel/pengguna', label: 'Pengguna', icon: '👥', roles: ['admin'] },
   { href: '/panel/aktivitas', label: 'Log Aktivitas', icon: '🧾', roles: ['admin'] },
   { href: '/panel/akun', label: 'Akun Saya', icon: '⚙️' }

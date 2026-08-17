@@ -15,6 +15,13 @@
       "when": 1786988635583,
       "tag": "0001_payroll",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1786989126350,
+      "tag": "0002_employees",
+      "breakpoints": true
     }
   ]
 }

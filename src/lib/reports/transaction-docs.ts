@@ -13,7 +13,9 @@ import { getSettings } from '@/lib/settings';
 import { getWorkOrderDetail } from '@/lib/data/work-orders';
 import { getServiceOrderDetail } from '@/lib/data/service-orders';
 import {
+  EMPLOYMENT_TYPE_LABEL,
   JOB_TYPE_LABEL,
+  MONTHLY_SALARY_TYPES,
   PAYMENT_METHOD_LABEL,
   UNIT_TYPE_LABEL,
   WORK_ORDER_STATUS_LABEL
@@ -36,7 +38,8 @@ export const TRANSACTION_DOC_TYPES = [
   'bukti-pembayaran',
   'kartu-servis',
   'surat-hutang',
-  'slip-gaji'
+  'slip-gaji',
+  'kontrak-kerja'
 ] as const;
 
 export type TransactionDocType = (typeof TRANSACTION_DOC_TYPES)[number];
@@ -51,7 +54,8 @@ export const TRANSACTION_DOC_META: Record<
   'bukti-pembayaran': { title: 'BUKTI PEMBAYARAN / TANDA TERIMA', menu: 'Bukti Pembayaran', target: 'pembayaran' },
   'kartu-servis': { title: 'KARTU KONTROL SERVIS', menu: 'Kartu Kontrol Servis', target: 'nomor polisi' },
   'surat-hutang': { title: 'SURAT HUTANG / PIUTANG', menu: 'Surat Hutang', target: 'SPK / order servis' },
-  'slip-gaji': { title: 'SLIP GAJI KARYAWAN', menu: 'Slip Gaji', target: 'slip gaji' }
+  'slip-gaji': { title: 'SLIP GAJI KARYAWAN', menu: 'Slip Gaji', target: 'slip gaji' },
+  'kontrak-kerja': { title: 'SURAT PERJANJIAN KERJA', menu: 'Kontrak Kerja', target: 'karyawan' }
 };
 
 export function isTransactionDocType(value: string): value is TransactionDocType {
@@ -461,6 +465,79 @@ export async function buildTransactionDoc(type: TransactionDocType, id: string):
               { role: 'Dibuat oleh,\nBag. Keuangan' },
               { role: 'Diperiksa oleh,\nKepala Bengkel' },
               { role: 'Diterima oleh,\nKaryawan', name: employee.name }
+            ]
+          }
+        ]
+      };
+    }
+
+    case 'kontrak-kerja': {
+      const db = await getDb();
+      const employee = (await db.select().from(employees).where(eq(employees.id, id)).limit(1))[0];
+      if (!employee) throw new DocumentNotFound('Karyawan tidak ditemukan.');
+
+      const monthly = MONTHLY_SALARY_TYPES.includes(employee.employmentType);
+      const wageLine = monthly
+        ? `Gaji pokok sebesar Rp ${formatIdrPlain(employee.baseSalaryIdr)} per bulan`
+        : `Upah sebesar Rp ${formatIdrPlain(employee.dailyRateIdr)} per hari kerja`;
+
+      const periodLine = employee.contractEnd
+        ? `Perjanjian ini berlaku sejak ${dateOnly(employee.contractStart ?? employee.joinDate)} sampai dengan ${dateOnly(employee.contractEnd)}.`
+        : 'Perjanjian ini berlaku sejak tanggal mulai bekerja dan tidak dibatasi jangka waktu tertentu.';
+
+      return {
+        ...base,
+        subtitle: `${employee.contractNumber ? `No. ${employee.contractNumber} · ` : ''}${EMPLOYMENT_TYPE_LABEL[employee.employmentType]}`,
+        sections: [
+          {
+            kind: 'note',
+            text: `Pada hari ini, ${formatDateId(new Date())}, bertempat di Kabupaten Bekasi, dibuat perjanjian kerja antara ${settings.reportCompanyName} (Pihak Pertama) dengan karyawan yang datanya tercantum di bawah ini (Pihak Kedua).`
+          },
+          {
+            kind: 'fields',
+            groups: [
+              {
+                title: 'Data Karyawan (Pihak Kedua)',
+                items: [
+                  { label: 'Nama', value: employee.name },
+                  { label: 'NIK / No. KTP', value: employee.idNumber ?? '-' },
+                  { label: 'Alamat', value: employee.address ?? '-' },
+                  { label: 'No. HP', value: employee.phone ?? '-' }
+                ]
+              },
+              {
+                title: 'Data Kepegawaian',
+                items: [
+                  { label: 'No. Induk Karyawan', value: employee.employeeNumber ?? '-' },
+                  { label: 'Jabatan', value: employee.position ?? '-' },
+                  { label: 'Bagian', value: employee.division ?? '-' },
+                  { label: 'Jenis Kepegawaian', value: EMPLOYMENT_TYPE_LABEL[employee.employmentType] },
+                  { label: 'Tanggal Masuk', value: dateOnly(employee.joinDate) }
+                ]
+              }
+            ]
+          },
+          {
+            kind: 'table',
+            title: 'Ketentuan Kerja',
+            columns: [
+              { label: 'PASAL', align: 'center', width: 1 },
+              { label: 'ISI KETENTUAN', width: 9 }
+            ],
+            rows: [
+              [1, `Pihak Kedua diterima bekerja pada bagian ${employee.division ?? '-'} dengan jabatan ${employee.position ?? '-'}.`],
+              [2, `${wageLine}, dibayarkan sesuai jadwal penggajian yang berlaku di perusahaan.`],
+              [3, periodLine],
+              [4, 'Pihak Kedua wajib menaati tata tertib, jam kerja, dan ketentuan keselamatan kerja yang berlaku di bengkel.'],
+              [5, 'Hal-hal yang belum diatur dalam perjanjian ini akan diselesaikan secara musyawarah oleh kedua belah pihak.']
+            ]
+          },
+          ...(employee.notes ? [{ kind: 'note' as const, text: `Catatan tambahan: ${employee.notes}` }] : []),
+          {
+            kind: 'signatures',
+            items: [
+              { role: 'Pihak Pertama,\n' + settings.reportCompanyName },
+              { role: 'Pihak Kedua,\nKaryawan', name: employee.name }
             ]
           }
         ]
