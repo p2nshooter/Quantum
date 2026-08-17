@@ -434,6 +434,57 @@ export const capitalEntries = sqliteTable(
   })
 );
 
+/* --- Penggajian ---------------------------------------------------------- */
+
+export const employees = sqliteTable('employees', {
+  id: text('id').primaryKey(),
+  employeeNumber: text('employee_number'),
+  name: text('name').notNull(),
+  position: text('position'),
+  division: text('division'),
+  phone: text('phone'),
+  bankAccount: text('bank_account'),
+  baseSalaryIdr: integer('base_salary_idr').notNull().default(0),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  ...timestamps
+});
+
+/**
+ * Satu baris = satu slip gaji.
+ *
+ * Komponen gaji disimpan sebagai JSON, bukan kolom tetap, karena tiap karyawan
+ * memakai gabungan komponen yang berbeda — dan yang tersimpan hanyalah komponen
+ * yang dicentang, sehingga slip lama tetap mencerminkan apa yang benar-benar
+ * dibayarkan waktu itu meski daftar komponennya nanti berubah.
+ */
+export const payrolls = sqliteTable(
+  'payrolls',
+  {
+    id: text('id').primaryKey(),
+    slipNumber: text('slip_number').notNull().unique(),
+    employeeId: text('employee_id')
+      .notNull()
+      .references(() => employees.id),
+    periodFrom: integer('period_from', { mode: 'timestamp_ms' }).notNull(),
+    periodTo: integer('period_to', { mode: 'timestamp_ms' }).notNull(),
+    paidAt: integer('paid_at', { mode: 'timestamp_ms' }).notNull(),
+    method: text('method').$type<PaymentMethod>().notNull().default('transfer'),
+    componentsJson: text('components_json').notNull(),
+    grossIdr: integer('gross_idr').notNull().default(0),
+    deductionIdr: integer('deduction_idr').notNull().default(0),
+    netIdr: integer('net_idr').notNull().default(0),
+    notes: text('notes'),
+    /** Biaya gaji yang otomatis tercatat agar penggajian masuk laporan laba rugi. */
+    expenseId: text('expense_id'),
+    createdBy: text('created_by').references(() => users.id),
+    ...timestamps
+  },
+  (t) => ({
+    employeeIdx: index('payrolls_employee_idx').on(t.employeeId),
+    paidIdx: index('payrolls_paid_idx').on(t.paidAt)
+  })
+);
+
 /* --- Pemasaran & konten halaman publik ----------------------------------- */
 
 export const leads = sqliteTable(

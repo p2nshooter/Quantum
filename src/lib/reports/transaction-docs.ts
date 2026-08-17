@@ -1,6 +1,14 @@
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db/client';
-import { customers, payments, serviceOrderItems, serviceOrders, stages, workOrders } from '@/lib/db/schema';
+import {
+  customers,
+  employees,
+  payments,
+  payrolls,
+  serviceOrderItems,
+  serviceOrders,
+  workOrders
+} from '@/lib/db/schema';
 import { getSettings } from '@/lib/settings';
 import { getWorkOrderDetail } from '@/lib/data/work-orders';
 import { getServiceOrderDetail } from '@/lib/data/service-orders';
@@ -27,7 +35,8 @@ export const TRANSACTION_DOC_TYPES = [
   'slip-pembayaran',
   'bukti-pembayaran',
   'kartu-servis',
-  'surat-hutang'
+  'surat-hutang',
+  'slip-gaji'
 ] as const;
 
 export type TransactionDocType = (typeof TRANSACTION_DOC_TYPES)[number];
@@ -41,7 +50,8 @@ export const TRANSACTION_DOC_META: Record<
   'slip-pembayaran': { title: 'SLIP PEMBAYARAN', menu: 'Slip Pembayaran', target: 'pembayaran' },
   'bukti-pembayaran': { title: 'BUKTI PEMBAYARAN / TANDA TERIMA', menu: 'Bukti Pembayaran', target: 'pembayaran' },
   'kartu-servis': { title: 'KARTU KONTROL SERVIS', menu: 'Kartu Kontrol Servis', target: 'nomor polisi' },
-  'surat-hutang': { title: 'SURAT HUTANG / PIUTANG', menu: 'Surat Hutang', target: 'SPK / order servis' }
+  'surat-hutang': { title: 'SURAT HUTANG / PIUTANG', menu: 'Surat Hutang', target: 'SPK / order servis' },
+  'slip-gaji': { title: 'SLIP GAJI KARYAWAN', menu: 'Slip Gaji', target: 'slip gaji' }
 };
 
 export function isTransactionDocType(value: string): value is TransactionDocType {
@@ -352,6 +362,106 @@ export async function buildTransactionDoc(type: TransactionDocType, id: string):
           {
             kind: 'note',
             text: 'Kartu ini disusun otomatis dari riwayat order servis kendaraan tersebut di sistem bengkel.'
+          }
+        ]
+      };
+    }
+
+    case 'slip-gaji': {
+      const db = await getDb();
+      const rows = await db
+        .select({ payroll: payrolls, employee: employees })
+        .from(payrolls)
+        .innerJoin(employees, eq(payrolls.employeeId, employees.id))
+        .where(eq(payrolls.id, id))
+        .limit(1);
+
+      const row = rows[0];
+      if (!row) throw new DocumentNotFound('Slip gaji tidak ditemukan.');
+      const { payroll, employee } = row;
+
+      // Hanya komponen yang dicentang saat penggajian yang tersimpan, jadi slip
+      // menampilkan apa adanya tanpa baris kosong berisi nol.
+      const components = JSON.parse(payroll.componentsJson) as {
+        label: string;
+        type: 'penghasilan' | 'potongan';
+        amountIdr: number;
+        calcNote?: string | null;
+      }[];
+
+      const earnings = components.filter((c) => c.type === 'penghasilan');
+      const deductions = components.filter((c) => c.type === 'potongan');
+      const methodLabel = PAYMENT_METHOD_LABEL[payroll.method];
+
+      return {
+        ...base,
+        subtitle: `No. ${payroll.slipNumber} · Periode ${dateOnly(payroll.periodFrom)} s/d ${dateOnly(payroll.periodTo)}`,
+        sections: [
+          {
+            kind: 'fields',
+            groups: [
+              {
+                title: 'Data Karyawan',
+                items: [
+                  { label: 'Nama Karyawan', value: employee.name },
+                  { label: 'Jabatan', value: employee.position ?? '-' },
+                  { label: 'Bagian', value: employee.division ?? '-' },
+                  { label: 'No. Induk Karyawan', value: employee.employeeNumber ?? '-' }
+                ]
+              },
+              {
+                title: 'Data Pembayaran',
+                items: [
+                  { label: 'Periode Gaji', value: `${dateOnly(payroll.periodFrom)} s/d ${dateOnly(payroll.periodTo)}` },
+                  { label: 'Tanggal Bayar', value: dateOnly(payroll.paidAt) },
+                  { label: 'Metode Pembayaran', value: methodLabel },
+                  { label: 'No. Rekening', value: employee.bankAccount ?? '-' }
+                ]
+              }
+            ]
+          },
+          {
+            kind: 'table',
+            title: 'Penghasilan',
+            columns: [
+              { label: 'NO.', align: 'center', width: 0.8 },
+              { label: 'JENIS PENGHASILAN', width: 5 },
+              { label: 'PERHITUNGAN', width: 3 },
+              { label: 'JUMLAH (Rp)', align: 'right', width: 2.5 }
+            ],
+            rows: earnings.map((c, i) => [i + 1, c.label, c.calcNote ?? '', formatIdrPlain(c.amountIdr)]),
+            totals: ['', 'TOTAL PENGHASILAN', '', formatIdrPlain(payroll.grossIdr)]
+          },
+          {
+            kind: 'table',
+            title: 'Potongan',
+            columns: [
+              { label: 'NO.', align: 'center', width: 0.8 },
+              { label: 'JENIS POTONGAN', width: 8 },
+              { label: 'JUMLAH (Rp)', align: 'right', width: 2.5 }
+            ],
+            rows: deductions.length
+              ? deductions.map((c, i) => [i + 1, c.label, formatIdrPlain(c.amountIdr)])
+              : [],
+            totals: ['', 'TOTAL POTONGAN', formatIdrPlain(payroll.deductionIdr)]
+          },
+          {
+            kind: 'amount',
+            label: 'Gaji bersih',
+            amountIdr: payroll.netIdr,
+            showTerbilang: true
+          },
+          {
+            kind: 'note',
+            text: `Gaji bersih = total penghasilan - total potongan.${payroll.notes ? ` Catatan: ${payroll.notes}` : ''}`
+          },
+          {
+            kind: 'signatures',
+            items: [
+              { role: 'Dibuat oleh,\nBag. Keuangan' },
+              { role: 'Diperiksa oleh,\nKepala Bengkel' },
+              { role: 'Diterima oleh,\nKaryawan', name: employee.name }
+            ]
           }
         ]
       };

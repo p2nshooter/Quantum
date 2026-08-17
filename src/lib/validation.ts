@@ -6,6 +6,7 @@ import {
   JOB_TYPES,
   LEAD_STATUSES,
   PAYMENT_METHODS,
+  PAYROLL_COMPONENT_TYPES,
   PPH_BASES,
   PRIORITIES,
   PROMO_KINDS,
@@ -353,6 +354,38 @@ export const capitalSchema = z.object({
   method: z.enum(PAYMENT_METHODS).default('transfer'),
   entryAt: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Tanggal wajib diisi'),
   notes: optionalText(300)
+});
+
+/* --- Penggajian ---------------------------------------------------------- */
+
+export const employeeSchema = z.object({
+  employeeNumber: optionalText(30),
+  name: z.string().trim().min(2, 'Nama karyawan minimal 2 karakter').max(100),
+  position: optionalText(60),
+  division: optionalText(60),
+  phone: optionalText(30),
+  bankAccount: optionalText(60),
+  baseSalaryIdr: z.number().int().min(0).max(100_000_000_000).default(0),
+  active: z.boolean().default(true)
+});
+
+export const payrollComponentSchema = z.object({
+  key: z.string().trim().min(1).max(40),
+  label: z.string().trim().min(1).max(60),
+  type: z.enum(PAYROLL_COMPONENT_TYPES),
+  amountIdr: z.number().int().min(0).max(100_000_000_000),
+  calcNote: optionalText(60)
+});
+
+export const payrollSchema = z.object({
+  employeeId: z.string().trim().min(1, 'Karyawan wajib dipilih'),
+  periodFrom: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Periode mulai wajib diisi'),
+  periodTo: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Periode selesai wajib diisi'),
+  paidAt: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Tanggal bayar wajib diisi'),
+  method: z.enum(PAYMENT_METHODS).default('transfer'),
+  notes: optionalText(300),
+  /** Hanya komponen yang dicentang yang dikirim ke sini. */
+  components: z.array(payrollComponentSchema).min(1, 'Pilih minimal satu komponen gaji').max(30)
 });
 
 /* --- Konten publik & pengaturan ------------------------------------------ */

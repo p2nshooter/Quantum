@@ -203,6 +203,36 @@ export const CAPITAL_TYPE_LABEL: Record<CapitalType, string> = {
   penarikan: 'Penarikan / Prive'
 };
 
+/* --- Penggajian ---------------------------------------------------------- */
+
+/**
+ * Komponen slip gaji. Semuanya opsional — admin mencentang mana yang dipakai
+ * untuk tiap karyawan, dan yang tidak dicentang tidak ikut tercetak di slip.
+ * `calcHint` mengisi kolom "Perhitungan" pada formulir cetak.
+ */
+export type PayrollComponentDef = { key: string; label: string; calcHint?: string };
+
+export const PAYROLL_EARNINGS: PayrollComponentDef[] = [
+  { key: 'gaji_pokok', label: 'Gaji Pokok' },
+  { key: 'tunjangan_jabatan', label: 'Tunjangan Jabatan' },
+  { key: 'tunjangan_kehadiran', label: 'Tunjangan Kehadiran' },
+  { key: 'tunjangan_transport', label: 'Tunjangan Transport' },
+  { key: 'lembur', label: 'Lembur', calcHint: 'jam x tarif' },
+  { key: 'bonus', label: 'Bonus / Prestasi' },
+  { key: 'penghasilan_lain', label: 'Lain-lain' }
+];
+
+export const PAYROLL_DEDUCTIONS: PayrollComponentDef[] = [
+  { key: 'absensi', label: 'Potongan Absensi / Telat' },
+  { key: 'bpjs_kesehatan', label: 'Iuran BPJS Kesehatan' },
+  { key: 'bpjs_ketenagakerjaan', label: 'Iuran BPJS Ketenagakerjaan' },
+  { key: 'pinjaman', label: 'Pinjaman / Cicilan' },
+  { key: 'potongan_lain', label: 'Lain-lain' }
+];
+
+export const PAYROLL_COMPONENT_TYPES = ['penghasilan', 'potongan'] as const;
+export type PayrollComponentType = (typeof PAYROLL_COMPONENT_TYPES)[number];
+
 /* --- Pemasaran ----------------------------------------------------------- */
 
 export const LEAD_STATUSES = ['baru', 'diproses', 'penawaran', 'deal', 'batal'] as const;
