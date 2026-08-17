@@ -1,22 +1,36 @@
 import { and, desc, eq, inArray, like, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db/client';
-import { bodyModels, customers, payments, stages, workOrders } from '@/lib/db/schema';
+import { bodyModels, customers, expenses, payments, stages, workOrders } from '@/lib/db/schema';
 import { newId } from '@/lib/id';
-import { calcProgressPercent, stageTemplateFor, type UnitType, type WorkOrderStatus } from '@/lib/karoseri/constants';
+import {
+  calcProgressPercent,
+  stageTemplateFor,
+  type JobType,
+  type Priority,
+  type UnitType,
+  type WorkOrderStatus
+} from '@/lib/karoseri/constants';
+
+/** Awalan nomor SPK dibedakan per lini pekerjaan agar mudah dikenali di berkas fisik. */
+const NUMBER_PREFIX: Record<JobType, string> = {
+  karoseri: 'SPK',
+  body_repair: 'BR'
+};
 
 /**
- * Nomor SPK berformat `SPK/YYYYMM/NNN`, urut per bulan.
+ * Nomor SPK berformat `SPK/YYYYMM/NNN` (atau `BR/...` untuk body repair), urut
+ * per bulan per lini.
  *
  * Nomor urut diambil dari nomor terbesar yang sudah ada di bulan berjalan, bukan
  * dari jumlah baris — jadi menghapus SPK lama tidak membuat nomor terpakai ulang.
  * Kolom `spk_number` unik, dan pemanggil (createWorkOrder) mencoba ulang bila dua
- * SPK dibuat pada detik yang sama.
+ * SPK dibuat pada saat bersamaan.
  */
-export async function generateSpkNumber(offset = 0): Promise<string> {
+export async function generateSpkNumber(jobType: JobType, offset = 0): Promise<string> {
   const db = await getDb();
   const now = new Date();
   const period = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
-  const prefix = `SPK/${period}/`;
+  const prefix = `${NUMBER_PREFIX[jobType]}/${period}/`;
 
   const rows = await db
     .select({ spkNumber: workOrders.spkNumber })
@@ -31,6 +45,7 @@ export async function generateSpkNumber(offset = 0): Promise<string> {
 }
 
 export type CreateWorkOrderInput = {
+  jobType: JobType;
   customerId: string;
   bodyModelId: string | null;
   unitType: UnitType;
@@ -42,33 +57,39 @@ export type CreateWorkOrderInput = {
   color: string | null;
   seatCount: number | null;
   specNotes: string | null;
+  insurerName: string | null;
+  policyNumber: string | null;
+  claimNumber: string | null;
+  surveyorName: string | null;
+  deductibleIdr: number;
   contractValueIdr: number;
   status: WorkOrderStatus;
-  priority: 'normal' | 'tinggi' | 'urgent';
+  priority: Priority;
   startDate: number | null;
   targetDate: number | null;
 };
 
 /**
- * Buat SPK sekaligus daftar tahapan produksinya dari template tipe unit.
+ * Buat SPK sekaligus daftar tahapan produksinya dari template lini pekerjaan.
  * SPK dan tahapannya ditulis dalam satu `batch` D1 supaya tidak pernah ada SPK
  * "telanjang" tanpa tahapan bila salah satu perintah gagal.
  */
 export async function createWorkOrder(input: CreateWorkOrderInput): Promise<{ id: string; spkNumber: string }> {
   const db = await getDb();
   const id = newId('spk');
-  const template = stageTemplateFor(input.unitType);
+  const template = stageTemplateFor(input.unitType, input.jobType);
 
   // Nomor SPK bentrok hanya mungkin bila dua admin menyimpan pada saat bersamaan;
   // unique index yang menolak, lalu kita ambil nomor berikutnya.
   let lastError: unknown = null;
   for (let attempt = 0; attempt < 5; attempt++) {
-    const spkNumber = await generateSpkNumber(attempt);
+    const spkNumber = await generateSpkNumber(input.jobType, attempt);
     try {
       await db.batch([
         db.insert(workOrders).values({
           id,
           spkNumber,
+          jobType: input.jobType,
           customerId: input.customerId,
           bodyModelId: input.bodyModelId,
           unitType: input.unitType,
@@ -80,6 +101,11 @@ export async function createWorkOrder(input: CreateWorkOrderInput): Promise<{ id
           color: input.color,
           seatCount: input.seatCount,
           specNotes: input.specNotes,
+          insurerName: input.insurerName,
+          policyNumber: input.policyNumber,
+          claimNumber: input.claimNumber,
+          surveyorName: input.surveyorName,
+          deductibleIdr: input.deductibleIdr,
           contractValueIdr: input.contractValueIdr,
           status: input.status,
           priority: input.priority,
@@ -116,6 +142,7 @@ function isUniqueViolation(err: unknown): boolean {
 }
 
 export type WorkOrderListFilter = {
+  jobType?: JobType;
   status?: WorkOrderStatus[];
   search?: string;
   limit?: number;
@@ -134,11 +161,12 @@ export async function listWorkOrders(filter: WorkOrderListFilter = {}) {
   ), 0)`;
 
   const conditions = [];
+  if (filter.jobType) conditions.push(eq(workOrders.jobType, filter.jobType));
   if (filter.status?.length) conditions.push(inArray(workOrders.status, filter.status));
   if (filter.search?.trim()) {
     const term = `%${filter.search.trim()}%`;
     conditions.push(
-      sql`(${workOrders.spkNumber} LIKE ${term} OR ${workOrders.chassisNumber} LIKE ${term} OR ${customers.name} LIKE ${term} OR ${customers.company} LIKE ${term})`
+      sql`(${workOrders.spkNumber} LIKE ${term} OR ${workOrders.chassisNumber} LIKE ${term} OR ${workOrders.policeNumber} LIKE ${term} OR ${customers.name} LIKE ${term} OR ${customers.company} LIKE ${term})`
     );
   }
 
@@ -146,9 +174,11 @@ export async function listWorkOrders(filter: WorkOrderListFilter = {}) {
     .select({
       id: workOrders.id,
       spkNumber: workOrders.spkNumber,
+      jobType: workOrders.jobType,
       unitType: workOrders.unitType,
       chassisBrand: workOrders.chassisBrand,
       chassisNumber: workOrders.chassisNumber,
+      policeNumber: workOrders.policeNumber,
       status: workOrders.status,
       priority: workOrders.priority,
       contractValueIdr: workOrders.contractValueIdr,
@@ -188,12 +218,22 @@ export async function getWorkOrderDetail(id: string) {
   const row = rows[0];
   if (!row) return null;
 
-  const [stageRows, paymentRows] = await Promise.all([
+  const [stageRows, paymentRows, materialRows] = await Promise.all([
     db.select().from(stages).where(eq(stages.workOrderId, id)).orderBy(stages.sortOrder),
-    db.select().from(payments).where(eq(payments.workOrderId, id)).orderBy(desc(payments.paidAt))
+    db
+      .select()
+      .from(payments)
+      .where(and(eq(payments.refType, 'work_order'), eq(payments.refId, id)))
+      .orderBy(desc(payments.paidAt)),
+    // Biaya bahan yang dibebankan ke SPK ini — dasar laba kotor per unit.
+    db
+      .select({ total: sql<number>`coalesce(sum(${expenses.amountIdr}), 0)` })
+      .from(expenses)
+      .where(eq(expenses.workOrderId, id))
   ]);
 
   const paidTotal = paymentRows.reduce((sum, p) => sum + p.amountIdr, 0);
+  const materialCost = materialRows[0]?.total ?? 0;
 
   return {
     workOrder: row.workOrder,
@@ -203,8 +243,25 @@ export async function getWorkOrderDetail(id: string) {
     payments: paymentRows,
     progressPercent: calcProgressPercent(stageRows),
     paidTotal,
-    outstanding: row.workOrder.contractValueIdr - paidTotal
+    outstanding: row.workOrder.contractValueIdr - paidTotal,
+    materialCost,
+    grossProfit: row.workOrder.contractValueIdr - materialCost
   };
+}
+
+/**
+ * Hapus SPK beserta seluruh turunannya.
+ *
+ * Tahapan ikut terhapus lewat ON DELETE CASCADE, tapi pembayaran memakai relasi
+ * polimorfik (tanpa foreign key) sehingga harus dihapus manual — kalau tidak,
+ * barisnya jadi yatim dan tetap ikut terhitung di laporan kas.
+ */
+export async function deleteWorkOrderCascade(id: string): Promise<void> {
+  const db = await getDb();
+  await db.delete(payments).where(and(eq(payments.refType, 'work_order'), eq(payments.refId, id)));
+  // Biaya bahan tetap disimpan sebagai catatan keuangan, hanya kaitannya dilepas.
+  await db.update(expenses).set({ workOrderId: null }).where(eq(expenses.workOrderId, id));
+  await db.delete(workOrders).where(eq(workOrders.id, id));
 }
 
 /**
@@ -241,9 +298,14 @@ export async function syncWorkOrderStatus(workOrderId: string): Promise<void> {
   else if (anyStarted) nextStatus = 'produksi';
 
   if (nextStatus !== workOrder.status) {
+    // `completedAt` dikunci pada saat pertama kali pekerjaan dinyatakan rampung.
+    // Kalau SPK dibuka lagi lalu selesai lagi, tanggal awalnya dipertahankan agar
+    // pendapatan tidak berpindah bulan di laporan yang sudah dicetak.
+    const completedAt =
+      nextStatus === 'selesai' && !workOrder.completedAt ? new Date() : workOrder.completedAt;
     await db
       .update(workOrders)
-      .set({ status: nextStatus, updatedAt: new Date() })
+      .set({ status: nextStatus, completedAt, updatedAt: new Date() })
       .where(eq(workOrders.id, workOrderId));
   }
 }

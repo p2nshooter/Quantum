@@ -4,6 +4,9 @@
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // Memberi URL publik gratis https://quantum-karoseri.<subdomain>.workers.dev
+  // sehingga sistem bisa dipakai online sebelum domain sendiri dibeli.
+  "workers_dev": true,
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"

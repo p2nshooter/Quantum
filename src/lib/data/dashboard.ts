@@ -1,7 +1,8 @@
-import { and, desc, eq, gte, inArray, lt, ne, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lt, sql, type SQL } from 'drizzle-orm';
 import { getDb } from '@/lib/db/client';
-import { customers, leads, payments, stages, workOrders } from '@/lib/db/schema';
-import { ACTIVE_STATUSES } from '@/lib/karoseri/constants';
+import { customers, items, leads, payments, serviceOrders, stages, workOrders } from '@/lib/db/schema';
+import { ACTIVE_STATUSES, SERVICE_OPEN_STATUSES } from '@/lib/karoseri/constants';
+import { getReceivables } from './reports';
 
 /** Ringkasan untuk dashboard panel: beban produksi, keterlambatan, dan uang. */
 export async function getDashboardStats() {
@@ -18,16 +19,16 @@ export async function getDashboardStats() {
     paidThisMonth,
     receivable,
     newLeads,
-    customerCount
+    customerCount,
+    openServiceOrders,
+    serviceThisMonth,
+    lowStockCount
   ] = await Promise.all([
-    countWhere(db, inArray(workOrders.status, ACTIVE_STATUSES)),
-    countWhere(db, eq(workOrders.status, 'produksi')),
-    countWhere(
-      db,
-      and(inArray(workOrders.status, ['selesai', 'diserahkan']), gte(workOrders.updatedAt, startOfMonth))
-    ),
+    countWorkOrders(db, inArray(workOrders.status, ACTIVE_STATUSES)),
+    countWorkOrders(db, eq(workOrders.status, 'produksi')),
+    countWorkOrders(db, and(inArray(workOrders.status, ['selesai', 'diserahkan']), gte(workOrders.completedAt, startOfMonth))),
     // Terlambat: target sudah lewat tapi unit masih di jalur produksi.
-    countWhere(db, and(inArray(workOrders.status, ACTIVE_STATUSES), lt(workOrders.targetDate, now))),
+    countWorkOrders(db, and(inArray(workOrders.status, ACTIVE_STATUSES), lt(workOrders.targetDate, now))),
     db
       .select({ sum: sql<number>`coalesce(sum(${workOrders.contractValueIdr}), 0)` })
       .from(workOrders)
@@ -38,7 +39,7 @@ export async function getDashboardStats() {
       .from(payments)
       .where(gte(payments.paidAt, startOfMonth))
       .then((r) => r[0]?.sum ?? 0),
-    getReceivableTotal(),
+    getReceivables().then((r) => r.total),
     db
       .select({ count: sql<number>`count(*)` })
       .from(leads)
@@ -47,6 +48,21 @@ export async function getDashboardStats() {
     db
       .select({ count: sql<number>`count(*)` })
       .from(customers)
+      .then((r) => r[0]?.count ?? 0),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(serviceOrders)
+      .where(inArray(serviceOrders.status, SERVICE_OPEN_STATUSES))
+      .then((r) => r[0]?.count ?? 0),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(serviceOrders)
+      .where(and(inArray(serviceOrders.status, ['selesai', 'diambil']), gte(serviceOrders.finishedAt, startOfMonth)))
+      .then((r) => r[0]?.count ?? 0),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(items)
+      .where(and(eq(items.kind, 'barang'), eq(items.active, true), sql`${items.stockQty} <= ${items.minStockQty}`))
       .then((r) => r[0]?.count ?? 0)
   ]);
 
@@ -59,35 +75,11 @@ export async function getDashboardStats() {
     paidThisMonth,
     receivable,
     newLeads,
-    customerCount
+    customerCount,
+    openServiceOrders,
+    serviceThisMonth,
+    lowStockCount
   };
-}
-
-/**
- * Total piutang: nilai kontrak seluruh SPK yang belum dibatalkan dikurangi
- * pembayaran yang sudah masuk. Dihitung dengan subquery agar SPK tanpa
- * pembayaran sekalipun tetap terhitung penuh.
- */
-export async function getReceivableTotal(): Promise<number> {
-  const db = await getDb();
-  const paidPerOrder = db
-    .select({
-      workOrderId: payments.workOrderId,
-      paid: sql<number>`sum(${payments.amountIdr})`.as('paid')
-    })
-    .from(payments)
-    .groupBy(payments.workOrderId)
-    .as('paid_per_order');
-
-  const rows = await db
-    .select({
-      sum: sql<number>`coalesce(sum(${workOrders.contractValueIdr} - coalesce(${paidPerOrder.paid}, 0)), 0)`
-    })
-    .from(workOrders)
-    .leftJoin(paidPerOrder, eq(paidPerOrder.workOrderId, workOrders.id))
-    .where(ne(workOrders.status, 'batal'));
-
-  return rows[0]?.sum ?? 0;
 }
 
 /** Sebaran unit aktif per tahapan — untuk melihat di mana antrian menumpuk. */
@@ -106,7 +98,7 @@ export async function getStageWorkload() {
     .limit(12);
 }
 
-async function countWhere(db: Awaited<ReturnType<typeof getDb>>, where: SQL | undefined) {
+async function countWorkOrders(db: Awaited<ReturnType<typeof getDb>>, where: SQL | undefined) {
   const rows = await db
     .select({ count: sql<number>`count(*)` })
     .from(workOrders)

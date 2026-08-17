@@ -17,7 +17,7 @@ export const DELETE = withErrorHandling(
     const rows = await db
       .select()
       .from(payments)
-      .where(and(eq(payments.id, paymentId), eq(payments.workOrderId, id)))
+      .where(and(eq(payments.id, paymentId), eq(payments.refType, 'work_order'), eq(payments.refId, id)))
       .limit(1);
     const payment = rows[0];
     if (!payment) return NextResponse.json({ error: 'Pembayaran tidak ditemukan.' }, { status: 404 });

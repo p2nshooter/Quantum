@@ -1,9 +1,21 @@
 /**
- * Domain karoseri: tipe unit, status SPK, dan template tahapan produksi.
+ * Domain bengkel: tipe unit, status pekerjaan, template tahapan produksi, serta
+ * enum keuangan (kategori biaya, metode bayar, dsb).
  *
  * File ini sengaja bebas dependency (tidak mengimpor drizzle/next) supaya aman
  * dipakai dari server component, route handler, maupun client component.
  */
+
+/* --- Pekerjaan bengkel --------------------------------------------------- */
+
+/** Dua lini pekerjaan yang dikelola lewat SPK bertahap. */
+export const JOB_TYPES = ['karoseri', 'body_repair'] as const;
+export type JobType = (typeof JOB_TYPES)[number];
+
+export const JOB_TYPE_LABEL: Record<JobType, string> = {
+  karoseri: 'Karoseri',
+  body_repair: 'Body Repair'
+};
 
 export const UNIT_TYPES = [
   'bus_besar',
@@ -13,6 +25,7 @@ export const UNIT_TYPES = [
   'wingbox',
   'dump',
   'tangki',
+  'mobil_penumpang',
   'custom'
 ] as const;
 
@@ -26,6 +39,7 @@ export const UNIT_TYPE_LABEL: Record<UnitType, string> = {
   wingbox: 'Wingbox',
   dump: 'Dump Truck',
   tangki: 'Tangki',
+  mobil_penumpang: 'Mobil Penumpang',
   custom: 'Custom / Lainnya'
 };
 
@@ -54,6 +68,9 @@ export const WORK_ORDER_STATUS_LABEL: Record<WorkOrderStatus, string> = {
 /** Status yang berarti unit masih menempati slot produksi di bengkel. */
 export const ACTIVE_STATUSES: WorkOrderStatus[] = ['antrian', 'produksi', 'qc'];
 
+/** Status yang berarti pekerjaan sudah rampung — dipakai sebagai titik akui pendapatan. */
+export const COMPLETED_STATUSES: WorkOrderStatus[] = ['selesai', 'diserahkan'];
+
 export const PRIORITIES = ['normal', 'tinggi', 'urgent'] as const;
 export type Priority = (typeof PRIORITIES)[number];
 
@@ -73,7 +90,55 @@ export const STAGE_STATUS_LABEL: Record<StageStatus, string> = {
   blocked: 'Terkendala'
 };
 
-export const PAYMENT_METHODS = ['transfer', 'tunai', 'cek', 'giro', 'lainnya'] as const;
+/* --- Order servis harian ------------------------------------------------- */
+
+export const SERVICE_STATUSES = [
+  'antrian',
+  'dikerjakan',
+  'menunggu_part',
+  'selesai',
+  'diambil',
+  'batal'
+] as const;
+export type ServiceStatus = (typeof SERVICE_STATUSES)[number];
+
+export const SERVICE_STATUS_LABEL: Record<ServiceStatus, string> = {
+  antrian: 'Antrian',
+  dikerjakan: 'Dikerjakan',
+  menunggu_part: 'Menunggu Part',
+  selesai: 'Selesai',
+  diambil: 'Sudah Diambil',
+  batal: 'Batal'
+};
+
+/** Order servis yang masih memakan kapasitas bengkel. */
+export const SERVICE_OPEN_STATUSES: ServiceStatus[] = ['antrian', 'dikerjakan', 'menunggu_part'];
+
+/** Order servis yang pendapatannya sudah boleh diakui. */
+export const SERVICE_DONE_STATUSES: ServiceStatus[] = ['selesai', 'diambil'];
+
+/* --- Barang & jasa ------------------------------------------------------- */
+
+export const ITEM_KINDS = ['barang', 'jasa'] as const;
+export type ItemKind = (typeof ITEM_KINDS)[number];
+
+export const ITEM_KIND_LABEL: Record<ItemKind, string> = {
+  barang: 'Barang / Sparepart',
+  jasa: 'Jasa'
+};
+
+export const STOCK_MOVE_TYPES = ['masuk', 'keluar', 'penyesuaian'] as const;
+export type StockMoveType = (typeof STOCK_MOVE_TYPES)[number];
+
+export const STOCK_MOVE_TYPE_LABEL: Record<StockMoveType, string> = {
+  masuk: 'Barang Masuk',
+  keluar: 'Barang Keluar',
+  penyesuaian: 'Penyesuaian Stok'
+};
+
+/* --- Keuangan ------------------------------------------------------------ */
+
+export const PAYMENT_METHODS = ['transfer', 'tunai', 'cek', 'giro', 'qris', 'lainnya'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
@@ -81,8 +146,64 @@ export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
   tunai: 'Tunai',
   cek: 'Cek',
   giro: 'Giro',
+  qris: 'QRIS',
   lainnya: 'Lainnya'
 };
+
+/** Sumber pembayaran — satu tabel pembayaran melayani SPK maupun order servis. */
+export const PAYMENT_REF_TYPES = ['work_order', 'service_order'] as const;
+export type PaymentRefType = (typeof PAYMENT_REF_TYPES)[number];
+
+/**
+ * Kategori biaya. `bahan_produksi` diperlakukan sebagai Harga Pokok Penjualan di
+ * laporan laba rugi, sisanya masuk biaya operasional.
+ */
+export const EXPENSE_CATEGORIES = [
+  'bahan_produksi',
+  'gaji_upah',
+  'sewa_tempat',
+  'listrik_air',
+  'peralatan',
+  'transport',
+  'perizinan_pajak',
+  'pemasaran',
+  'lainnya'
+] as const;
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
+export const EXPENSE_CATEGORY_LABEL: Record<ExpenseCategory, string> = {
+  bahan_produksi: 'Bahan & Material Produksi',
+  gaji_upah: 'Gaji & Upah',
+  sewa_tempat: 'Sewa Tempat',
+  listrik_air: 'Listrik, Air & Internet',
+  peralatan: 'Peralatan & Perawatan',
+  transport: 'Transport & BBM',
+  perizinan_pajak: 'Perizinan & Pajak',
+  pemasaran: 'Pemasaran',
+  lainnya: 'Lain-lain'
+};
+
+/** Biaya yang dihitung sebagai HPP, bukan biaya operasional. */
+export const COGS_EXPENSE_CATEGORIES: ExpenseCategory[] = ['bahan_produksi'];
+
+/** Dasar pengenaan PPh yang dipakai laporan laba rugi. */
+export const PPH_BASES = ['omzet', 'laba'] as const;
+export type PphBase = (typeof PPH_BASES)[number];
+
+export const PPH_BASE_LABEL: Record<PphBase, string> = {
+  omzet: 'PPh final dari omzet (peredaran bruto)',
+  laba: 'PPh dari laba usaha'
+};
+
+export const CAPITAL_TYPES = ['setoran', 'penarikan'] as const;
+export type CapitalType = (typeof CAPITAL_TYPES)[number];
+
+export const CAPITAL_TYPE_LABEL: Record<CapitalType, string> = {
+  setoran: 'Setoran Modal',
+  penarikan: 'Penarikan / Prive'
+};
+
+/* --- Pemasaran ----------------------------------------------------------- */
 
 export const LEAD_STATUSES = ['baru', 'diproses', 'penawaran', 'deal', 'batal'] as const;
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
@@ -95,14 +216,38 @@ export const LEAD_STATUS_LABEL: Record<LeadStatus, string> = {
   batal: 'Batal'
 };
 
-export const USER_ROLES = ['admin', 'produksi', 'keuangan'] as const;
+export const PROMO_KINDS = ['promo', 'event', 'pengumuman'] as const;
+export type PromoKind = (typeof PROMO_KINDS)[number];
+
+export const PROMO_KIND_LABEL: Record<PromoKind, string> = {
+  promo: 'Promo',
+  event: 'Event',
+  pengumuman: 'Pengumuman'
+};
+
+/* --- Pengguna ------------------------------------------------------------ */
+
+export const USER_ROLES = ['admin', 'produksi', 'keuangan', 'bos'] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
 export const USER_ROLE_LABEL: Record<UserRole, string> = {
   admin: 'Administrator',
   produksi: 'Kepala Produksi',
-  keuangan: 'Keuangan'
+  keuangan: 'Keuangan',
+  bos: 'Pemilik / Direktur'
 };
+
+export const USER_ROLE_DESCRIPTION: Record<UserRole, string> = {
+  admin: 'Akses penuh: seluruh data, pengguna, pengaturan, dan laporan.',
+  produksi: 'SPK, tahapan produksi, order servis, master data. Tidak melihat laporan keuangan.',
+  keuangan: 'Pembayaran, pembelian, biaya, modal, dan seluruh laporan keuangan.',
+  bos: 'Hanya membaca laporan. Tidak bisa mengubah data apa pun.'
+};
+
+/** Peran yang boleh membuka menu laporan keuangan. */
+export const REPORT_ROLES: UserRole[] = ['admin', 'keuangan', 'bos'];
+
+/* --- Template tahapan ---------------------------------------------------- */
 
 export type StageTemplate = { name: string; weightPercent: number };
 
@@ -188,6 +333,22 @@ const CUSTOM_STAGES: StageTemplate[] = [
   { name: 'QC & Serah Terima', weightPercent: 7 }
 ];
 
+/**
+ * Body repair jauh lebih pendek dari karoseri: tidak ada pembuatan rangka baru,
+ * fokusnya perbaikan panel, pengecatan, dan pemasangan kembali.
+ */
+const BODY_REPAIR_STAGES: StageTemplate[] = [
+  { name: 'Cek Awal & Foto Kerusakan', weightPercent: 5 },
+  { name: 'Bongkar Panel & Aksesoris', weightPercent: 10 },
+  { name: 'Ketok & Perbaikan Panel', weightPercent: 20 },
+  { name: 'Dempul & Pengamplasan', weightPercent: 15 },
+  { name: 'Epoxy & Primer', weightPercent: 10 },
+  { name: 'Pengecatan & Pencocokan Warna', weightPercent: 18 },
+  { name: 'Poles & Finishing', weightPercent: 10 },
+  { name: 'Pasang Kembali & QC', weightPercent: 8 },
+  { name: 'Serah Terima', weightPercent: 4 }
+];
+
 export const STAGE_TEMPLATES: Record<UnitType, StageTemplate[]> = {
   bus_besar: BUS_STAGES,
   bus_medium: BUS_STAGES,
@@ -196,10 +357,16 @@ export const STAGE_TEMPLATES: Record<UnitType, StageTemplate[]> = {
   wingbox: WINGBOX_STAGES,
   dump: DUMP_STAGES,
   tangki: TANGKI_STAGES,
+  mobil_penumpang: CUSTOM_STAGES,
   custom: CUSTOM_STAGES
 };
 
-export function stageTemplateFor(unitType: UnitType): StageTemplate[] {
+/**
+ * Tahapan ditentukan lini pekerjaannya dulu: apa pun tipe kendaraannya,
+ * pekerjaan body repair memakai alur perbaikan, bukan alur pembuatan bodi.
+ */
+export function stageTemplateFor(unitType: UnitType, jobType: JobType = 'karoseri'): StageTemplate[] {
+  if (jobType === 'body_repair') return BODY_REPAIR_STAGES;
   return STAGE_TEMPLATES[unitType] ?? CUSTOM_STAGES;
 }
 
@@ -300,4 +467,28 @@ export const BODY_MODEL_PRESETS: {
     basePriceIdr: 260_000_000,
     estimatedDays: 30
   }
+];
+
+/** Preset jasa servis & body repair agar daftar harga tidak kosong saat awal dipakai. */
+export const ITEM_PRESETS: {
+  code: string;
+  name: string;
+  kind: ItemKind;
+  unit: string;
+  costPriceIdr: number;
+  sellPriceIdr: number;
+  showOnLanding: boolean;
+}[] = [
+  { code: 'JS-OLI', name: 'Jasa Ganti Oli', kind: 'jasa', unit: 'unit', costPriceIdr: 0, sellPriceIdr: 75_000, showOnLanding: true },
+  { code: 'JS-TUNEUP', name: 'Tune Up Mesin', kind: 'jasa', unit: 'unit', costPriceIdr: 0, sellPriceIdr: 350_000, showOnLanding: true },
+  { code: 'JS-REM', name: 'Servis Rem & Kaki-Kaki', kind: 'jasa', unit: 'unit', costPriceIdr: 0, sellPriceIdr: 250_000, showOnLanding: true },
+  { code: 'JS-AC', name: 'Servis AC Mobil', kind: 'jasa', unit: 'unit', costPriceIdr: 0, sellPriceIdr: 400_000, showOnLanding: true },
+  { code: 'JS-SCAN', name: 'Scanner / Diagnosa Komputer', kind: 'jasa', unit: 'unit', costPriceIdr: 0, sellPriceIdr: 150_000, showOnLanding: true },
+  { code: 'JS-TURUN', name: 'Turun Mesin (Overhaul)', kind: 'jasa', unit: 'unit', costPriceIdr: 0, sellPriceIdr: 3_500_000, showOnLanding: false },
+  { code: 'JS-CAT-PANEL', name: 'Cat Ulang per Panel', kind: 'jasa', unit: 'panel', costPriceIdr: 0, sellPriceIdr: 450_000, showOnLanding: true },
+  { code: 'JS-POLES', name: 'Poles Body Full', kind: 'jasa', unit: 'unit', costPriceIdr: 0, sellPriceIdr: 600_000, showOnLanding: true },
+  { code: 'BR-OLI-4L', name: 'Oli Mesin 4 Liter', kind: 'barang', unit: 'galon', costPriceIdr: 220_000, sellPriceIdr: 285_000, showOnLanding: false },
+  { code: 'BR-FILTER', name: 'Filter Oli', kind: 'barang', unit: 'pcs', costPriceIdr: 35_000, sellPriceIdr: 55_000, showOnLanding: false },
+  { code: 'BR-KAMPAS', name: 'Kampas Rem Set', kind: 'barang', unit: 'set', costPriceIdr: 180_000, sellPriceIdr: 260_000, showOnLanding: false },
+  { code: 'BR-DEMPUL', name: 'Dempul Body 1 kg', kind: 'barang', unit: 'kg', costPriceIdr: 65_000, sellPriceIdr: 95_000, showOnLanding: false }
 ];

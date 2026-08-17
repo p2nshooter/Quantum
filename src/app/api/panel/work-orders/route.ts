@@ -5,7 +5,7 @@ import { parseBody, withErrorHandling } from '@/lib/api-handler';
 import { createWorkOrder, listWorkOrders } from '@/lib/data/work-orders';
 import { parseDateInput } from '@/lib/format';
 import { logAction } from '@/lib/audit';
-import { WORK_ORDER_STATUSES, type WorkOrderStatus } from '@/lib/karoseri/constants';
+import { JOB_TYPES, WORK_ORDER_STATUSES, type JobType, type WorkOrderStatus } from '@/lib/karoseri/constants';
 
 export const GET = withErrorHandling(async (req: NextRequest) => {
   const guard = await requireUser();
@@ -14,8 +14,10 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
   const url = new URL(req.url);
   const statusParam = url.searchParams.getAll('status').filter(isWorkOrderStatus);
   const search = url.searchParams.get('q') ?? undefined;
+  const jobTypeParam = url.searchParams.get('jobType');
+  const jobType = isJobType(jobTypeParam) ? jobTypeParam : undefined;
 
-  const rows = await listWorkOrders({ status: statusParam.length ? statusParam : undefined, search });
+  const rows = await listWorkOrders({ jobType, status: statusParam.length ? statusParam : undefined, search });
   return NextResponse.json({ workOrders: rows });
 });
 
@@ -35,7 +37,8 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   });
 
   await logAction(guard.user.id, 'work_order.create', 'work_order', created.id, {
-    spkNumber: created.spkNumber
+    spkNumber: created.spkNumber,
+    jobType: input.jobType
   });
 
   return NextResponse.json({ ok: true, ...created });
@@ -43,4 +46,8 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
 
 function isWorkOrderStatus(value: string): value is WorkOrderStatus {
   return (WORK_ORDER_STATUSES as readonly string[]).includes(value);
+}
+
+function isJobType(value: string | null): value is JobType {
+  return !!value && (JOB_TYPES as readonly string[]).includes(value);
 }

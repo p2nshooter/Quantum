@@ -17,7 +17,11 @@
     "db:migrate:remote": "wrangler d1 migrations apply quantum_db --remote",
     "db:seed:local": "wrangler d1 execute quantum_db --local --file=./seed/seed.sql",
     "db:seed:remote": "wrangler d1 execute quantum_db --remote --file=./seed/seed.sql",
-    "generate:seed": "tsx scripts/generate-seed.ts"
+    "generate:seed": "tsx scripts/generate-seed.ts",
+    "generate:demo": "tsx scripts/generate-demo-seed.ts",
+    "generate:templates": "python3 scripts/generate-office-templates.py && node scripts/generate-word-templates.js",
+    "db:demo:local": "wrangler d1 execute quantum_db --local --file=./seed/demo.sql",
+    "db:demo:remote": "wrangler d1 execute quantum_db --remote --file=./seed/demo.sql"
   },
   "dependencies": {
     "next": "15.5.20",

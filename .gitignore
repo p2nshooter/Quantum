@@ -11,3 +11,6 @@ dist
 next-env.d.ts
 *.tsbuildinfo
 seed/seed.sql
+
+# seed berisi hash password, dibuat ulang di CI
+seed/demo.sql

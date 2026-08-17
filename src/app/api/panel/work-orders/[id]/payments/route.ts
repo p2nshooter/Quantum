@@ -28,13 +28,15 @@ export const POST = withErrorHandling(async (req: NextRequest, { params }: { par
   const paymentId = newId('pay');
   await db.insert(payments).values({
     id: paymentId,
-    workOrderId: id,
+    refType: 'work_order',
+    refId: id,
     label: parsed.data.label,
     amountIdr: parsed.data.amountIdr,
     method: parsed.data.method,
     paidAt: new Date(paidAtMs),
     reference: parsed.data.reference,
-    notes: parsed.data.notes
+    notes: parsed.data.notes,
+    createdBy: guard.user.id
   });
   await logAction(guard.user.id, 'payment.create', 'payment', paymentId, {
     workOrderId: id,

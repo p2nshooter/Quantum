@@ -36,6 +36,15 @@ export const PATCH = withErrorHandling(async (req: NextRequest, { params }: { pa
   if (deliveredAt !== undefined) updates.deliveredAt = toDate(deliveredAt);
 
   const db = await getDb();
+
+  // Menandai SPK selesai/diserahkan secara manual juga harus mengunci tanggal
+  // pengakuan pendapatannya — kalau tidak, SPK yang dilompatkan langsung ke
+  // "diserahkan" tanpa melewati tahapan tidak akan pernah muncul di laba rugi.
+  if (rest.status && (rest.status === 'selesai' || rest.status === 'diserahkan')) {
+    const current = (await db.select().from(workOrders).where(eq(workOrders.id, id)).limit(1))[0];
+    if (current && !current.completedAt) updates.completedAt = new Date();
+  }
+
   await db.update(workOrders).set(updates).where(eq(workOrders.id, id));
   await logAction(guard.user.id, 'work_order.update', 'work_order', id, rest);
 

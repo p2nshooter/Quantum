@@ -17,7 +17,7 @@
 import { pbkdf2Sync, randomBytes } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { BODY_MODEL_PRESETS } from '../src/lib/karoseri/constants';
+import { BODY_MODEL_PRESETS, ITEM_PRESETS } from '../src/lib/karoseri/constants';
 
 // Harus sama dengan src/lib/auth/password.ts — Cloudflare Workers menolak
 // PBKDF2 di atas 100.000 iterasi saat verifikasi.
@@ -73,11 +73,28 @@ function main() {
   }
   lines.push('');
 
+  lines.push('-- Katalog barang & jasa bawaan (dipakai order servis dan daftar harga publik)');
+  for (const preset of ITEM_PRESETS) {
+    const id = `mdl_item_${preset.code.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+    lines.push(
+      `INSERT OR IGNORE INTO items (id, code, name, kind, unit, cost_price_idr, sell_price_idr, stock_qty, min_stock_qty, show_on_landing, active) VALUES (${sqlString(
+        id
+      )}, ${sqlString(preset.code)}, ${sqlString(preset.name)}, ${sqlString(preset.kind)}, ${sqlString(
+        preset.unit
+      )}, ${preset.costPriceIdr}, ${preset.sellPriceIdr}, 0, ${preset.kind === 'barang' ? 5 : 0}, ${
+        preset.showOnLanding ? 1 : 0
+      }, 1);`
+    );
+  }
+  lines.push('');
+
   const outPath = resolve(process.cwd(), 'seed/seed.sql');
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, lines.join('\n'), 'utf8');
 
-  console.log(`✔ seed/seed.sql dibuat (${BODY_MODEL_PRESETS.length} model bodi + 1 akun admin).`);
+  console.log(
+    `✔ seed/seed.sql dibuat (${BODY_MODEL_PRESETS.length} model bodi + ${ITEM_PRESETS.length} barang/jasa + 1 akun admin).`
+  );
   console.log(`  Email admin : ${email}`);
   if (providedPassword) {
     console.log('  Password    : diambil dari ADMIN_BOOTSTRAP_PASSWORD (tidak dicetak).');
