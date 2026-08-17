@@ -1,0 +1,46 @@
+{
+  "name": "quantum-karoseri",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sistem manajemen produksi karoseri CV. Quantum Karya Bersama",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply quantum_db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply quantum_db --remote",
+    "db:seed:local": "wrangler d1 execute quantum_db --local --file=./seed/seed.sql",
+    "db:seed:remote": "wrangler d1 execute quantum_db --remote --file=./seed/seed.sql",
+    "generate:seed": "tsx scripts/generate-seed.ts"
+  },
+  "dependencies": {
+    "next": "15.5.20",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "3.23.8",
+    "drizzle-orm": "0.33.0",
+    "nanoid": "5.0.7"
+  },
+  "devDependencies": {
+    "@opennextjs/cloudflare": "1.20.1",
+    "@cloudflare/workers-types": "4.20260702.1",
+    "typescript": "5.6.3",
+    "tailwindcss": "3.4.13",
+    "postcss": "8.4.47",
+    "autoprefixer": "10.4.20",
+    "@types/node": "20.16.11",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "drizzle-kit": "0.24.2",
+    "tsx": "4.19.1",
+    "wrangler": "4.107.0",
+    "eslint": "8.57.1",
+    "eslint-config-next": "15.5.20"
+  }
+}
