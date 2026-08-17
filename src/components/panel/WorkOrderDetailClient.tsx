@@ -431,6 +431,7 @@ function PaymentSection({
               <th>Metode</th>
               <th>Tanggal</th>
               <th>Referensi</th>
+              <th>Cetak</th>
               {editable && <th />}
             </tr>
           </thead>
@@ -442,6 +443,23 @@ function PaymentSection({
                 <td>{PAYMENT_METHOD_LABEL[payment.method]}</td>
                 <td>{formatDate(payment.paidAt)}</td>
                 <td className="text-slate-400">{payment.reference || '—'}</td>
+                <td className="whitespace-nowrap">
+                  {/* Slip dan bukti pembayaran dicetak dari baris pembayaran ini. */}
+                  <a
+                    href={`/api/panel/dokumen/slip-pembayaran/${payment.id}?format=pdf`}
+                    download
+                    className="text-xs font-semibold text-quantum-600 hover:underline"
+                  >
+                    Slip
+                  </a>
+                  <a
+                    href={`/api/panel/dokumen/bukti-pembayaran/${payment.id}?format=pdf`}
+                    download
+                    className="ml-3 text-xs font-semibold text-quantum-600 hover:underline"
+                  >
+                    Bukti
+                  </a>
+                </td>
                 {editable && (
                   <td className="text-right">
                     <button onClick={() => removePayment(payment.id)} className="text-xs text-red-500 hover:underline">
@@ -453,7 +471,7 @@ function PaymentSection({
             ))}
             {detail.payments.length === 0 && (
               <tr>
-                <td colSpan={editable ? 6 : 5} className="py-6 text-center text-slate-400">
+                <td colSpan={editable ? 7 : 6} className="py-6 text-center text-slate-400">
                   Belum ada pembayaran tercatat.
                 </td>
               </tr>

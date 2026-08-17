@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-import type { ReportSection } from '@/lib/reports/document';
+import { formatIdrPlain as formatAmount, terbilang as terbilangText, type ReportSection } from '@/lib/reports/document';
 import type { SerializedReport } from '@/lib/reports/serialize';
 
 /**
@@ -136,6 +136,74 @@ function ReportLetterhead({ doc }: { doc: SerializedReport }) {
 function SectionView({ section }: { section: ReportSection }) {
   if (section.kind === 'note') {
     return <p className="text-xs italic text-slate-500">{section.text}</p>;
+  }
+
+  if (section.kind === 'fields') {
+    return (
+      <div className={`grid gap-5 ${section.groups.length > 1 ? 'sm:grid-cols-2' : ''}`}>
+        {section.groups.map((group, gi) => (
+          <div key={gi}>
+            {group.title && (
+              <div className="mb-2 bg-gold-500 px-2 py-1 text-xs font-bold uppercase text-slate-900">
+                {group.title}
+              </div>
+            )}
+            <dl className="space-y-1 text-sm">
+              {group.items.map((item) => (
+                <div key={item.label} className="flex gap-2">
+                  <dt className="w-36 shrink-0 text-slate-500">{item.label}</dt>
+                  <dd className="flex-1 border-b border-dotted border-slate-300 text-slate-800 dark:border-slate-600 dark:text-slate-100">
+                    {item.value || '-'}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (section.kind === 'amount') {
+    return (
+      <div>
+        <div className="inline-flex items-baseline gap-3 rounded-lg bg-slate-900 px-5 py-2.5">
+          <span className="text-lg font-black text-gold-400">Rp</span>
+          <span className="text-2xl font-black tabular-nums text-white">{formatAmount(section.amountIdr)}</span>
+        </div>
+        {section.showTerbilang && (
+          <p className="mt-2 text-sm italic text-slate-600 dark:text-slate-300">
+            Terbilang: {terbilangText(section.amountIdr)}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  if (section.kind === 'choices') {
+    return (
+      <p className="text-sm">
+        <strong>{section.label}:</strong>{' '}
+        {section.options.map((option) => (
+          <span key={option} className="mr-5">
+            {section.selected === option ? '☒' : '☐'} {option}
+          </span>
+        ))}
+      </p>
+    );
+  }
+
+  if (section.kind === 'signatures') {
+    return (
+      <div className={`grid gap-4 text-center text-xs text-slate-500 grid-cols-${Math.min(section.items.length, 4)}`}>
+        {section.items.map((item) => (
+          <div key={item.role}>
+            <p>{item.role}</p>
+            <p className="mt-12">({item.name || '________________'})</p>
+          </div>
+        ))}
+      </div>
+    );
   }
 
   if (section.kind === 'summary') {

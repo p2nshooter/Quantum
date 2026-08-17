@@ -1,6 +1,13 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { COMPANY } from '@/lib/company';
-import { BRAND, type ReportCell, type ReportColumn, type ReportDocument } from './document';
+import {
+  BRAND,
+  formatIdrPlain,
+  terbilang,
+  type ReportCell,
+  type ReportColumn,
+  type ReportDocument
+} from './document';
 
 /**
  * Render laporan ke PDF asli memakai pdf-lib.
@@ -266,6 +273,93 @@ export async function renderReportPdf(doc: ReportDocument): Promise<Uint8Array> 
       continue;
     }
 
+    // Blok isian: dua kelompok bersebelahan, mengikuti formulir cetak.
+    if (section.kind === 'fields') {
+      const colWidth = CONTENT_WIDTH / section.groups.length;
+      const startY = ctx.y;
+      let lowest = startY;
+
+      section.groups.forEach((group, gi) => {
+        const x = MARGIN + colWidth * gi;
+        let y = startY;
+
+        if (group.title) {
+          ctx.page.drawRectangle({ x, y: y - 12, width: colWidth - 10, height: 13, color: COLORS.gold });
+          drawText(ctx, group.title.toUpperCase(), x + 5, y - 9, { size: 7.5, bold: true });
+          y -= 20;
+        }
+
+        for (const item of group.items) {
+          drawText(ctx, item.label, x + 2, y - 8, { size: 8, color: COLORS.muted, maxWidth: colWidth * 0.4 });
+          drawText(ctx, ':', x + colWidth * 0.42, y - 8, { size: 8, color: COLORS.muted });
+          drawText(ctx, item.value || '-', x + colWidth * 0.46, y - 8, {
+            size: 8,
+            maxWidth: colWidth * 0.5
+          });
+          y -= 13;
+        }
+        lowest = Math.min(lowest, y);
+      });
+
+      ctx.y = lowest - 8;
+      continue;
+    }
+
+    if (section.kind === 'amount') {
+      ensureSpace(ctx, 44);
+      const boxHeight = 26;
+      ctx.page.drawRectangle({ x: MARGIN, y: ctx.y - boxHeight, width: 240, height: boxHeight, color: COLORS.dark });
+      drawText(ctx, 'Rp', MARGIN + 12, ctx.y - 18, { size: 13, bold: true, color: COLORS.gold });
+      drawText(ctx, formatIdrPlain(section.amountIdr), MARGIN + 40, ctx.y - 18, {
+        size: 14,
+        bold: true,
+        color: COLORS.white
+      });
+      ctx.y -= boxHeight + 6;
+
+      if (section.showTerbilang) {
+        for (const line of wrapText(ctx, `Terbilang: ${terbilang(section.amountIdr)}`, CONTENT_WIDTH, 8)) {
+          drawText(ctx, line, MARGIN, ctx.y - 8, { size: 8 });
+          ctx.y -= 11;
+        }
+      }
+      ctx.y -= 6;
+      continue;
+    }
+
+    if (section.kind === 'choices') {
+      ensureSpace(ctx, 18);
+      drawText(ctx, `${section.label}:`, MARGIN, ctx.y - 8, { size: 8.5, bold: true });
+      let x = MARGIN + textWidth(ctx, `${section.label}:`, 8.5, true) + 10;
+      for (const option of section.options) {
+        const mark = section.selected === option ? '[X]' : '[  ]';
+        drawText(ctx, `${mark} ${option}`, x, ctx.y - 8, { size: 8.5 });
+        x += textWidth(ctx, `${mark} ${option}`, 8.5) + 16;
+      }
+      ctx.y -= 20;
+      continue;
+    }
+
+    if (section.kind === 'signatures') {
+      ensureSpace(ctx, 76);
+      ctx.y -= 10;
+      const cell = CONTENT_WIDTH / section.items.length;
+      section.items.forEach((item, index) => {
+        const x = MARGIN + cell * index;
+        // Label boleh bertingkat (mis. "Bekasi, 8 Juli 2026" lalu "Hormat kami,");
+        // tanpa pemecahan ini keduanya tercetak menempel jadi satu baris.
+        item.role.split('\n').forEach((line, lineIndex) => {
+          const width = textWidth(ctx, line, 8);
+          drawText(ctx, line, x + (cell - width) / 2, ctx.y - lineIndex * 11, { size: 8 });
+        });
+        const name = `(${item.name || '________________'})`;
+        const nameWidth = textWidth(ctx, name, 8);
+        drawText(ctx, name, x + (cell - nameWidth) / 2, ctx.y - 46, { size: 8 });
+      });
+      ctx.y -= 62;
+      continue;
+    }
+
     if (section.title) {
       ensureSpace(ctx, 22);
       drawText(ctx, section.title.toUpperCase(), MARGIN, ctx.y - 10, { size: 9, bold: true, color: COLORS.blue });
@@ -298,7 +392,12 @@ export async function renderReportPdf(doc: ReportDocument): Promise<Uint8Array> 
     ctx.y -= 10;
   }
 
-  // Blok tanda tangan, mengikuti formulir kas yang dipakai bengkel.
+  // Blok tanda tangan baku dilewati bila dokumen sudah punya susunannya sendiri.
+  if (doc.sections.some((s) => s.kind === 'signatures')) {
+    drawFooters(ctx, pdf.getPageCount());
+    return pdf.save();
+  }
+
   ensureSpace(ctx, 80);
   ctx.y -= 16;
   const third = CONTENT_WIDTH / 3;

@@ -21,7 +21,15 @@ export type ReportCell = string | number;
 export type ReportSection =
   | { kind: 'table'; title?: string; columns: ReportColumn[]; rows: ReportCell[][]; totals?: ReportCell[] }
   | { kind: 'summary'; title?: string; items: { label: string; value: string; emphasis?: boolean }[] }
-  | { kind: 'note'; text: string };
+  | { kind: 'note'; text: string }
+  /** Blok isian berlabel, mis. Data Kendaraan dan Data Pemilik bersebelahan. */
+  | { kind: 'fields'; groups: { title?: string; items: { label: string; value: string }[] }[] }
+  /** Kotak nominal besar bergaya kwitansi, lengkap dengan terbilang. */
+  | { kind: 'amount'; label: string; amountIdr: number; showTerbilang?: boolean }
+  /** Pilihan bercentang, mis. metode pembayaran Tunai / Transfer / Lainnya. */
+  | { kind: 'choices'; label: string; options: string[]; selected?: string }
+  /** Blok tanda tangan; jumlahnya mengikuti formulir aslinya. */
+  | { kind: 'signatures'; items: { role: string; name?: string }[] };
 
 export type ReportDocument = {
   /** Judul yang dicetak di bilah gelap, mis. "LAPORAN LABA RUGI". */
@@ -46,6 +54,48 @@ export function formatIdrPlain(amount: number): string {
   const abs = Math.abs(Math.round(amount));
   const formatted = abs.toLocaleString('id-ID');
   return amount < 0 ? `(${formatted})` : formatted;
+}
+
+const SATUAN = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas'];
+
+/**
+ * Nominal rupiah dalam huruf, untuk kwitansi dan surat hutang.
+ *
+ * Aturan bahasa Indonesia yang mudah terlewat sudah ditangani: 11-19 memakai
+ * "belas", 100-199 memakai "seratus", dan 1.000-1.999 memakai "seribu" —
+ * bukan "satu ratus" atau "satu ribu".
+ */
+export function terbilang(value: number): string {
+  const n = Math.floor(Math.abs(value));
+  if (n === 0) return 'nol';
+
+  const words = (num: number): string => {
+    if (num < 12) return SATUAN[num];
+    if (num < 20) return `${words(num - 10)} belas`;
+    if (num < 100) {
+      const rest = num % 10;
+      return `${words(Math.floor(num / 10))} puluh${rest ? ` ${words(rest)}` : ''}`;
+    }
+    if (num < 200) return `seratus${num - 100 ? ` ${words(num - 100)}` : ''}`;
+    if (num < 1000) {
+      const rest = num % 100;
+      return `${words(Math.floor(num / 100))} ratus${rest ? ` ${words(rest)}` : ''}`;
+    }
+    if (num < 2000) return `seribu${num - 1000 ? ` ${words(num - 1000)}` : ''}`;
+    if (num < 1_000_000) {
+      const rest = num % 1000;
+      return `${words(Math.floor(num / 1000))} ribu${rest ? ` ${words(rest)}` : ''}`;
+    }
+    if (num < 1_000_000_000) {
+      const rest = num % 1_000_000;
+      return `${words(Math.floor(num / 1_000_000))} juta${rest ? ` ${words(rest)}` : ''}`;
+    }
+    const rest = num % 1_000_000_000;
+    return `${words(Math.floor(num / 1_000_000_000))} miliar${rest ? ` ${words(rest)}` : ''}`;
+  };
+
+  const text = words(n).replace(/\s+/g, ' ').trim();
+  return `${value < 0 ? 'minus ' : ''}${text} rupiah`;
 }
 
 export function formatDateId(value: Date): string {
@@ -103,6 +153,66 @@ function letterheadHtml(settings: AppSettings): string {
 function sectionHtml(section: ReportSection): string {
   if (section.kind === 'note') {
     return `<p class="catatan">${escapeHtml(section.text)}</p>`;
+  }
+
+  if (section.kind === 'fields') {
+    const width = Math.floor(100 / section.groups.length);
+    const cells = section.groups
+      .map((group) => {
+        const rows = group.items
+          .map(
+            (item) =>
+              `<tr><td class="f-label">${escapeHtml(item.label)}</td><td class="f-sep">:</td>` +
+              `<td class="f-value">${escapeHtml(item.value || '-')}</td></tr>`
+          )
+          .join('');
+        return `<td width="${width}%" valign="top">
+            ${group.title ? `<div class="blok-judul">${escapeHtml(group.title)}</div>` : ''}
+            <table class="isian" width="100%">${rows}</table>
+          </td>`;
+      })
+      .join('');
+    return `<table width="100%" class="grup"><tr>${cells}</tr></table>`;
+  }
+
+  if (section.kind === 'amount') {
+    return `<table class="nominal" width="100%"><tr>
+        <td class="nominal-kotak"><span class="nominal-rp">Rp</span> ${escapeHtml(
+          formatIdrPlain(section.amountIdr)
+        )}</td>
+      </tr>${
+        section.showTerbilang
+          ? `<tr><td class="terbilang">Terbilang: <em>${escapeHtml(terbilang(section.amountIdr))}</em></td></tr>`
+          : ''
+      }</table>`;
+  }
+
+  if (section.kind === 'choices') {
+    const boxes = section.options
+      .map(
+        (option) =>
+          `<span class="pilihan">${section.selected === option ? '&#9746;' : '&#9744;'} ${escapeHtml(option)}</span>`
+      )
+      .join('');
+    return `<p class="pilihan-baris"><strong>${escapeHtml(section.label)}:</strong> ${boxes}</p>`;
+  }
+
+  if (section.kind === 'signatures') {
+    const width = Math.floor(100 / section.items.length);
+    const heads = section.items
+      .map((item) => `<td width="${width}%">${escapeHtml(item.role).replace(/\n/g, '<br>')}</td>`)
+      .join('');
+    const names = section.items
+      .map((item) => `<td>(${escapeHtml(item.name || '________________')})</td>`)
+      .join('');
+    return `<table class="ttd" width="100%">
+        <tr>${heads}</tr>
+        <tr><td style="height:56px"></td>${section.items
+          .slice(1)
+          .map(() => '<td></td>')
+          .join('')}</tr>
+        <tr>${names}</tr>
+      </table>`;
   }
 
   if (section.kind === 'summary') {
@@ -184,17 +294,37 @@ export function renderReportHtml(doc: ReportDocument): string {
   .footer { margin-top: 22px; border-top: 2px solid ${BRAND.gold}; padding-top: 6px; font-size: 8pt; color: ${BRAND.muted}; }
   .ttd { margin-top: 34px; width: 100%; }
   .ttd td { font-size: 9pt; text-align: center; padding-top: 4px; }
+  .grup { margin-bottom: 10px; border-collapse: collapse; }
+  .grup > tbody > tr > td { padding-right: 14px; }
+  .blok-judul { background: ${BRAND.gold}; color: ${BRAND.dark}; font-size: 8.5pt; font-weight: bold;
+    padding: 3px 8px; margin-bottom: 4px; text-transform: uppercase; }
+  table.isian td { font-size: 9.5pt; padding: 2px 0; vertical-align: top; }
+  .f-label { width: 38%; color: #475569; }
+  .f-sep { width: 12px; }
+  .f-value { border-bottom: 1px dotted #94a3b8; }
+  .nominal { margin: 10px 0; border-collapse: collapse; }
+  .nominal-kotak { background: ${BRAND.dark}; color: #fff; font-size: 15pt; font-weight: bold; padding: 9px 16px; }
+  .nominal-rp { color: ${BRAND.gold}; margin-right: 8px; }
+  .terbilang { font-size: 9pt; padding-top: 5px; color: #334155; }
+  .pilihan-baris { font-size: 9.5pt; margin: 8px 0; }
+  .pilihan { margin-right: 20px; }
 </style></head>
 <body>
   ${letterheadHtml(doc.settings)}
   <div class="judul">${escapeHtml(doc.title)}</div>
   ${doc.subtitle ? `<div class="periode">${escapeHtml(doc.subtitle)}</div>` : ''}
   ${body}
-  <table class="ttd">
+  ${
+    // Blok tanda tangan baku hanya ditambahkan bila dokumen belum punya sendiri —
+    // formulir seperti SPK dan surat hutang memakai susunan tanda tangannya sendiri.
+    doc.sections.some((s) => s.kind === 'signatures')
+      ? ''
+      : `<table class="ttd">
     <tr><td>Dibuat oleh,</td><td>Diperiksa oleh,</td><td>Disetujui oleh,</td></tr>
     <tr><td style="height:56px"></td><td></td><td></td></tr>
     <tr><td>(________________)</td><td>(________________)</td><td>(________________)</td></tr>
-  </table>
+  </table>`
+  }
   <div class="footer">
     ${escapeHtml(doc.settings.reportFooterNote)} Dicetak ${escapeHtml(
       doc.generatedAt.toLocaleString('id-ID')

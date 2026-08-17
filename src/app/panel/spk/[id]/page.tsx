@@ -7,6 +7,7 @@ import { PriorityBadge } from '@/components/ui/Badge';
 import { daysUntil, formatDate, formatIdr } from '@/lib/format';
 import { UNIT_TYPE_LABEL } from '@/lib/karoseri/constants';
 import { COMPANY } from '@/lib/company';
+import { PrintMenu } from '@/components/panel/PrintMenu';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,10 +22,17 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
 
   return (
     <div className="space-y-6">
-      <div className="no-print">
+      <div className="no-print flex flex-wrap items-center justify-between gap-3">
         <Link href="/panel/spk" className="text-sm text-slate-500 hover:text-quantum-600">
           ← Kembali ke daftar SPK
         </Link>
+
+        {/* Cetak dokumen resmi langsung dari data SPK ini — tidak perlu ketik ulang. */}
+        <div className="flex flex-wrap gap-2">
+          <PrintMenu label="SPK" jenis="spk" id={workOrder.id} />
+          <PrintMenu label="Estimasi Biaya" jenis="estimasi" id={workOrder.id} />
+          {detail.outstanding > 0 && <PrintMenu label="Surat Hutang" jenis="surat-hutang" id={workOrder.id} />}
+        </div>
       </div>
 
       <header className="card">
