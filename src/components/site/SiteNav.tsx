@@ -17,6 +17,9 @@ export function SiteNav() {
           <Link href="/#katalog" className="hover:text-quantum-600">
             Katalog
           </Link>
+          <Link href="/#harga" className="hover:text-quantum-600">
+            Daftar Harga
+          </Link>
           <Link href="/#proses" className="hover:text-quantum-600">
             Proses
           </Link>

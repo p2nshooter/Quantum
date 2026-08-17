@@ -16,7 +16,7 @@ plus halaman publik agar pelanggan bisa melacak sendiri progres unitnya.
 
 | Halaman | Fungsi |
 |---|---|
-| `/` | Profil perusahaan, layanan, katalog model bodi (dari database), alur kerja, form permintaan penawaran |
+| `/` | Profil perusahaan, layanan, **promo & event**, katalog model bodi, **daftar harga servis**, alur kerja, form permintaan penawaran — promo, katalog, dan daftar harga semuanya diisi dari panel, bukan ditulis di kode |
 | `/lacak` | Pelanggan memantau progres unit dengan **nomor SPK + nomor rangka** |
 | `/login` | Pintu masuk panel internal (tidak ditautkan mencolok, `noindex`) |
 
@@ -25,12 +25,20 @@ plus halaman publik agar pelanggan bisa melacak sendiri progres unitnya.
 | Menu | Fungsi |
 |---|---|
 | Dashboard | Unit aktif, unit lewat target, selesai bulan ini, nilai kontrak berjalan, pembayaran masuk, piutang, tahapan yang sedang berjalan |
-| SPK & Unit | Daftar + filter status + pencarian (nomor SPK/nomor rangka/pelanggan), buat SPK, detail SPK |
-| Detail SPK | Progres berbobot, tahapan produksi (status, PIC, tanggal, catatan), termin pembayaran, sisa tagihan |
+| Laporan Keuangan | Laba rugi, arus kas, buku kas, pemasukan-pengeluaran, piutang, utang, persediaan — semuanya per periode dan bisa diunduh **PDF atau Word** berkop surat *(admin, keuangan, bos)* |
+| SPK & Unit | Daftar + filter status + pencarian (nomor SPK/nomor rangka/pelanggan), buat SPK karoseri maupun body repair, detail SPK |
+| Detail SPK | Progres berbobot, tahapan produksi (status, PIC, tanggal, catatan), termin pembayaran, sisa tagihan, cetak SPK & estimasi biaya |
+| Order Servis | Servis harian: keluhan, pekerjaan, sparepart terpakai (otomatis memotong stok), mekanik, pembayaran, kartu kontrol servis |
 | Pelanggan | Data PO/perusahaan/perorangan |
 | Model Bodi | Katalog model, harga dasar, estimasi hari kerja, tampil/tidak di katalog publik |
+| Barang & Jasa | Master sparepart & jasa: harga modal, harga jual, stok, stok minimum, stok opname, tampil/tidak di daftar harga publik |
+| Kas & Pembelian | Biaya operasional (termasuk yang masih utang), setoran/penarikan modal, pembelian barang ke supplier beserta cicilan utangnya |
 | Permintaan Penawaran | Lead dari form publik, status tindak lanjut, catatan internal, tombol WhatsApp |
+| Karyawan | Bagian/divisi, data karyawan, gaji pokok, jenis & masa kontrak, cetak surat perjanjian kerja |
+| Penggajian | Slip gaji dengan komponen yang dipilih lewat checklist; slip yang disimpan otomatis jadi biaya `gaji_upah` |
+| Promo & Event | Konten promo/event/pengumuman halaman depan beserta harga coret, tombol CTA, dan masa berlakunya |
 | Pengguna | Kelola akun staf & peran *(admin)* |
+| Pengaturan | Tarif PPN & PPh, dasar pengenaan PPh, identitas kop surat, saldo kas awal *(admin)* |
 | Log Aktivitas | 100 perubahan data terakhir beserta pelakunya *(admin)* |
 | Akun Saya | Ganti password sendiri |
 
@@ -50,9 +58,10 @@ plus halaman publik agar pelanggan bisa melacak sendiri progres unitnya.
 
 | Peran | Wewenang |
 |---|---|
-| `admin` | Semuanya, termasuk kelola pengguna, hapus data, dan lihat log aktivitas |
-| `produksi` | SPK, tahapan produksi, pelanggan, model bodi, tindak lanjut penawaran |
-| `keuangan` | Catat/hapus pembayaran, pelanggan, tindak lanjut penawaran (tidak bisa ubah tahapan/SPK) |
+| `admin` | Semuanya, termasuk kelola pengguna, pengaturan pajak, hapus data, dan lihat log aktivitas |
+| `produksi` | SPK, tahapan produksi, order servis, pelanggan, model bodi, barang & jasa, promo, tindak lanjut penawaran |
+| `keuangan` | Pembayaran, biaya, modal, pembelian, penggajian, order servis, laporan keuangan (tidak bisa ubah tahapan produksi) |
+| `bos` | **Hanya membaca.** Laporan keuangan, kas & pembelian, dan data karyawan — tanpa menu operasional dan tanpa hak menulis apa pun (percobaan menulis ditolak 403 di server, bukan cuma disembunyikan di menu) |
 
 ## Stack
 
@@ -131,7 +140,9 @@ src/
     page.tsx            # landing publik
     lacak/              # pelacakan progres oleh pelanggan
     login/              # masuk panel
-    panel/              # panel internal (dashboard, spk, pelanggan, model, penawaran, pengguna)
+    panel/              # panel internal (dashboard, laporan, spk, servis, pelanggan, model,
+                        #   barang, keuangan, penawaran, karyawan, penggajian, promo,
+                        #   pengguna, pengaturan, aktivitas, akun)
     api/
       auth/             # login, logout, ganti password
       leads/            # form penawaran publik (rate limit via KV)
@@ -144,7 +155,8 @@ src/
   lib/
     karoseri/           # domain: tipe unit, status, template tahapan, preset model
     auth/               # password (PBKDF2), sesi, guard peran
-    data/               # query SPK & dashboard
+    data/               # query SPK, order servis, dashboard, laporan, karyawan
+    reports/            # model dokumen netral-format + renderer HTML/Word/PDF berkop surat
     db/                 # skema & klien Drizzle
 migrations/             # migrasi D1 (drizzle-kit generate)
 scripts/generate-seed.ts
@@ -162,14 +174,32 @@ scripts/generate-seed.ts
 - **Menghapus data yang masih dipakai ditolak**, bukan dipaksakan: pelanggan yang masih punya SPK
   dan model yang sudah dipakai SPK tidak bisa dihapus (model cukup dinonaktifkan) supaya riwayat
   produksi tetap utuh.
+- **Pendapatan diakui saat pekerjaan selesai, bukan saat uang masuk.** SPK memakai `completedAt`
+  dan order servis memakai `finishedAt`; tanggal itu diisi sekali saat status pertama kali menjadi
+  selesai dan tidak digeser lagi ketika status maju ke "diserahkan"/"diambil" — kalau digeser,
+  laporan bulan yang sudah ditutup ikut berubah.
+- **Harga modal disalin ke baris transaksi**, tidak dibaca ulang dari master saat laporan dibuat.
+  Naiknya harga sparepart hari ini tidak boleh mengubah laba order bulan lalu.
+- **Stok bergerak lewat kartu stok, tidak pernah dihapus.** Pembatalan pembelian atau order servis
+  menulis pergerakan balik tersendiri supaya jejaknya tetap bisa ditelusuri.
+- **Tarif pajak disalin ke transaksi saat dibuat.** Mengubah tarif PPN di Pengaturan tidak
+  mengubah order yang sudah terlanjur diterbitkan.
 
-## Rencana lanjutan
+## Tiga lini pekerjaan
 
-Bengkel ini melayani tiga lini: karoseri, body repair, dan service mobil. Yang sudah bersistem baru
-karoseri. Dua lini lain membutuhkan alur berbeda dan bisa ditambahkan menyusul:
+Ketiganya sudah bersistem, masing-masing dengan alur yang sesuai sifat pekerjaannya:
 
-- **Body repair** — mirip karoseri tapi tahapannya lebih pendek (bongkar, ketok, dempul, epoxy,
-  cat, poles, QC) dan sering terkait klaim asuransi, jadi perlu field nomor polis/surveyor.
-- **Service mobil** — pekerjaan harian yang selesai dalam hitungan jam, jadi lebih cocok memakai
-  order servis sederhana (keluhan, pekerjaan, sparepart, mekanik, biaya) ketimbang SPK bertahap;
-  perlu juga riwayat servis per nomor polisi dan pengingat servis berikutnya.
+- **Karoseri** — SPK bertahap dengan template tahapan per tipe unit, progres berbobot, termin
+  pembayaran.
+- **Body repair** — SPK bernomor `BR/YYYYMM/NNN` dengan tahapan lebih pendek (bongkar, ketok,
+  dempul, epoxy, cat, poles, QC) dan field klaim asuransi (perusahaan, nomor polis, surveyor).
+- **Service mobil** — order servis harian bernomor `SRV/YYYYMM/NNN`: keluhan, diagnosa, baris
+  pekerjaan & sparepart, mekanik, pembayaran, plus kartu kontrol servis per nomor polisi.
+
+## Dokumen cetak
+
+Semua laporan dan dokumen transaksi dibangun dari satu model dokumen netral-format
+(`src/lib/reports/document.ts`) lalu dirender ke **HTML (layar), Word, dan PDF** dengan kop surat
+yang sama. Dokumen transaksi yang tersedia: SPK, estimasi biaya, slip pembayaran, bukti
+pembayaran/kuitansi, kartu kontrol servis, surat hutang, slip gaji, dan surat perjanjian kerja.
+Templat Word/Excel kosong untuk diisi tangan ada di `templates/`.

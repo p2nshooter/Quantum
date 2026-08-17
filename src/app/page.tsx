@@ -1,13 +1,13 @@
 import Link from 'next/link';
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { getDb } from '@/lib/db/client';
-import { bodyModels } from '@/lib/db/schema';
+import { bodyModels, items, promos } from '@/lib/db/schema';
 import { SiteFooter, SiteNav } from '@/components/site/SiteNav';
 import { QuoteForm } from '@/components/site/QuoteForm';
 import { COMPANY, whatsappLink } from '@/lib/company';
 import { LogoMark } from '@/components/ui/Logo';
-import { formatIdrShort } from '@/lib/format';
-import { STAGE_TEMPLATES, UNIT_TYPE_LABEL } from '@/lib/karoseri/constants';
+import { formatIdr, formatIdrShort } from '@/lib/format';
+import { ITEM_KIND_LABEL, PROMO_KIND_LABEL, STAGE_TEMPLATES, UNIT_TYPE_LABEL, type PromoKind } from '@/lib/karoseri/constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,14 +56,33 @@ const ADVANTAGES = [
   }
 ];
 
+/** Warna kartu promo per jenis konten. */
+const PROMO_STYLE: Record<PromoKind, string> = {
+  promo: 'border-gold-300 bg-gold-50 dark:border-gold-700/60 dark:bg-gold-900/10',
+  event: 'border-quantum-200 bg-quantum-50 dark:border-quantum-800 dark:bg-quantum-950/40',
+  pengumuman: 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'
+};
+
 export default async function HomePage() {
   const db = await getDb();
-  const models = await db
-    .select()
-    .from(bodyModels)
-    .where(eq(bodyModels.active, true))
-    .orderBy(asc(bodyModels.code))
-    .limit(9);
+  const now = new Date();
+
+  const [models, promoRows, priceRows] = await Promise.all([
+    db.select().from(bodyModels).where(eq(bodyModels.active, true)).orderBy(asc(bodyModels.code)).limit(9),
+    db.select().from(promos).where(eq(promos.active, true)).orderBy(asc(promos.sortOrder)).limit(12),
+    db
+      .select()
+      .from(items)
+      .where(and(eq(items.active, true), eq(items.showOnLanding, true)))
+      .orderBy(asc(items.kind), asc(items.name))
+      .limit(24)
+  ]);
+
+  // Masa berlaku disaring di sini, bukan di query: tanggalnya boleh kosong
+  // (promo tanpa batas waktu) dan SQL-nya jadi jauh lebih ribet tanpa manfaat.
+  const activePromos = promoRows.filter(
+    (promo) => (!promo.startsAt || promo.startsAt <= now) && (!promo.endsAt || promo.endsAt >= now)
+  );
 
   const busProcess = STAGE_TEMPLATES.bus_besar;
 
@@ -130,6 +149,60 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
+
+        {/* Promo & event — isinya diatur admin lewat Panel → Promo & Event */}
+        {activePromos.length > 0 && (
+          <section id="promo" className="border-b border-slate-200 bg-white py-16 dark:border-slate-800 dark:bg-slate-900">
+            <div className="container-page">
+              <h2 className="text-3xl font-black text-slate-900 dark:text-white">Promo &amp; info terbaru</h2>
+              <p className="mt-2 max-w-2xl text-slate-500 dark:text-slate-400">
+                Penawaran yang sedang berjalan di bengkel kami.
+              </p>
+
+              <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {activePromos.map((promo) => (
+                  <article key={promo.id} className={`flex flex-col rounded-2xl border p-5 shadow-sm ${PROMO_STYLE[promo.kind]}`}>
+                    <span className="text-3xl">{promo.emoji}</span>
+                    <span className="mt-3 text-xs font-semibold uppercase tracking-wide text-quantum-600">
+                      {PROMO_KIND_LABEL[promo.kind]}
+                    </span>
+                    <h3 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">{promo.title}</h3>
+                    {promo.description && (
+                      <p className="mt-1.5 flex-1 text-sm text-slate-600 dark:text-slate-300">{promo.description}</p>
+                    )}
+
+                    {promo.promoPriceIdr !== null && (
+                      <p className="mt-4">
+                        {promo.normalPriceIdr !== null && (
+                          <span className="mr-2 text-sm text-slate-400 line-through">{formatIdr(promo.normalPriceIdr)}</span>
+                        )}
+                        <span className="text-xl font-black text-slate-900 dark:text-white">
+                          {formatIdr(promo.promoPriceIdr)}
+                        </span>
+                      </p>
+                    )}
+
+                    {promo.endsAt && (
+                      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                        Berlaku sampai{' '}
+                        {promo.endsAt.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      </p>
+                    )}
+
+                    <a
+                      href={whatsappLink(`Halo, saya tertarik dengan ${promo.title}.`)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-4 inline-flex w-fit rounded-xl bg-quantum-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-quantum-700"
+                    >
+                      {promo.ctaLabel || 'Tanya via WhatsApp'}
+                    </a>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Layanan */}
         <section id="layanan" className="py-20">
@@ -205,6 +278,43 @@ export default async function HomePage() {
             )}
           </div>
         </section>
+
+        {/* Daftar harga jasa & sparepart — dikelola admin lewat Panel → Barang & Jasa */}
+        {priceRows.length > 0 && (
+          <section id="harga" className="py-20">
+            <div className="container-page">
+              <h2 className="text-3xl font-black text-slate-900 dark:text-white">Daftar harga servis</h2>
+              <p className="mt-2 max-w-2xl text-slate-500 dark:text-slate-400">
+                Harga jasa dan sparepart yang paling sering dikerjakan. Harga dapat berubah menyesuaikan kondisi
+                kendaraan dan ketersediaan barang.
+              </p>
+
+              <div className="mt-8 overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-left dark:bg-slate-900">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold text-slate-600 dark:text-slate-300">Jasa / barang</th>
+                      <th className="px-4 py-3 font-semibold text-slate-600 dark:text-slate-300">Jenis</th>
+                      <th className="px-4 py-3 text-right font-semibold text-slate-600 dark:text-slate-300">Harga</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {priceRows.map((item) => (
+                      <tr key={item.id} className="border-t border-slate-100 dark:border-slate-800">
+                        <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{item.name}</td>
+                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{ITEM_KIND_LABEL[item.kind]}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right font-bold tabular-nums text-slate-900 dark:text-white">
+                          {formatIdr(item.sellPriceIdr)}
+                          <span className="ml-1 text-xs font-normal text-slate-400">/ {item.unit}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Proses & keunggulan */}
         <section id="proses" className="py-20">

@@ -20,12 +20,17 @@ const NAV: NavItem[] = [
   { href: '/panel', label: 'Dashboard', icon: '📊', exact: true, roles: ['admin', 'produksi', 'keuangan'] },
   { href: '/panel/laporan', label: 'Laporan Keuangan', icon: '📈', roles: REPORT_ROLES },
   { href: '/panel/spk', label: 'SPK & Unit', icon: '🚌', roles: ['admin', 'produksi', 'keuangan'] },
+  { href: '/panel/servis', label: 'Order Servis', icon: '🔧', roles: ['admin', 'produksi', 'keuangan'] },
   { href: '/panel/pelanggan', label: 'Pelanggan', icon: '🤝', roles: ['admin', 'produksi', 'keuangan'] },
   { href: '/panel/model', label: 'Model Bodi', icon: '📐', roles: ['admin', 'produksi'] },
+  { href: '/panel/barang', label: 'Barang & Jasa', icon: '🧰', roles: ['admin', 'produksi', 'keuangan'] },
+  { href: '/panel/keuangan', label: 'Kas & Pembelian', icon: '💳', roles: ['admin', 'keuangan', 'bos'] },
   { href: '/panel/penawaran', label: 'Permintaan Penawaran', icon: '📨', roles: ['admin', 'produksi', 'keuangan'] },
   { href: '/panel/karyawan', label: 'Karyawan', icon: '🧑‍🔧', roles: ['admin', 'keuangan', 'bos', 'produksi'] },
   { href: '/panel/penggajian', label: 'Penggajian', icon: '💰', roles: ['admin', 'keuangan'] },
+  { href: '/panel/promo', label: 'Promo & Event', icon: '📣', roles: ['admin', 'produksi', 'keuangan'] },
   { href: '/panel/pengguna', label: 'Pengguna', icon: '👥', roles: ['admin'] },
+  { href: '/panel/pengaturan', label: 'Pengaturan', icon: '🛠️', roles: ['admin'] },
   { href: '/panel/aktivitas', label: 'Log Aktivitas', icon: '🧾', roles: ['admin'] },
   { href: '/panel/akun', label: 'Akun Saya', icon: '⚙️' }
 ];
