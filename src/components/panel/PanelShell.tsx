@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import type { SessionUser } from '@/lib/auth/session';
 import { USER_ROLE_LABEL } from '@/lib/karoseri/constants';
+import { LogoMark } from '@/components/ui/Logo';
 
 type NavItem = { href: string; label: string; icon: string; adminOnly?: boolean; exact?: boolean };
 
@@ -40,13 +41,11 @@ export function PanelShell({ user, children }: { user: SessionUser; children: Re
   return (
     <div className="flex min-h-screen bg-slate-100 dark:bg-slate-950">
       <aside className="no-print hidden w-64 shrink-0 flex-col bg-slate-900 p-4 text-slate-200 md:flex">
-        <Link href="/panel" className="mb-6 flex items-center gap-2 px-2">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-quantum-600 text-lg font-black text-white">
-            Q
-          </span>
+        <Link href="/panel" className="mb-6 flex items-center gap-2.5 px-2">
+          <LogoMark />
           <span className="leading-tight">
             <span className="block text-sm font-black text-white">QUANTUM</span>
-            <span className="block text-[10px] uppercase tracking-widest text-quantum-400">Panel Produksi</span>
+            <span className="block text-[10px] uppercase tracking-widest text-gold-400">Panel Produksi</span>
           </span>
         </Link>
 

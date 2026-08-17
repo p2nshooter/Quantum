@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/session';
 import { COMPANY } from '@/lib/company';
+import { LogoWordmark } from '@/components/ui/Logo';
 import { LoginForm } from './LoginForm';
 
 export const metadata: Metadata = {
@@ -19,11 +20,8 @@ export default async function LoginPage() {
   return (
     <main className="grid min-h-screen place-items-center bg-slate-100 px-4 py-12 dark:bg-slate-950">
       <div className="w-full max-w-md">
-        <Link href="/" className="mb-6 flex items-center justify-center gap-2">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-quantum-600 text-lg font-black text-white">
-            Q
-          </span>
-          <span className="text-lg font-black text-slate-900 dark:text-white">{COMPANY.shortName}</span>
+        <Link href="/" className="mb-6 flex justify-center" aria-label={COMPANY.legalName}>
+          <LogoWordmark />
         </Link>
 
         <div className="card">

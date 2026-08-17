@@ -13,7 +13,7 @@ const BASE = 'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-s
 
 const NEUTRAL = 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
 const BLUE = 'bg-quantum-100 text-quantum-700 dark:bg-quantum-950 dark:text-quantum-300';
-const AMBER = 'bg-steel-100 text-steel-700 dark:bg-steel-900/40 dark:text-steel-300';
+const AMBER = 'bg-gold-100 text-gold-700 dark:bg-gold-900/40 dark:text-gold-300';
 const GREEN = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
 const RED = 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
 

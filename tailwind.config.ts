@@ -5,33 +5,33 @@ const config: Config = {
   content: ['./src/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      // Tiga warna logo Quantum: biru (utama), emas (aksen), merah (bahaya/urgent).
       colors: {
-        // Biru industrial — warna utama identitas Quantum.
         quantum: {
-          50: '#eef6ff',
-          100: '#d9ebff',
-          200: '#bcdcff',
-          300: '#8ec6ff',
-          400: '#59a6ff',
-          500: '#3383fb',
-          600: '#1d63f0',
-          700: '#164edc',
-          800: '#1841b2',
-          900: '#1a3b8c',
-          950: '#142555'
+          50: '#eef3ff',
+          100: '#dde6ff',
+          200: '#c1d1ff',
+          300: '#97b1ff',
+          400: '#6a87fb',
+          500: '#4361f2',
+          600: '#1b4fd8', // biru papan nama
+          700: '#173fb4',
+          800: '#173792',
+          900: '#193274',
+          950: '#101d47'
         },
-        // Oranye bengkel untuk aksen (peringatan, prioritas, CTA sekunder).
-        steel: {
-          50: '#fff8ed',
-          100: '#ffefd4',
-          200: '#ffdba8',
-          300: '#ffc071',
-          400: '#ff9c38',
-          500: '#ff7f11',
-          600: '#f06207',
-          700: '#c74808',
-          800: '#9e390f',
-          900: '#7f3110'
+        // Emas logo — dipakai untuk CTA sekunder, prioritas, dan penanda perhatian.
+        gold: {
+          50: '#fffaeb',
+          100: '#fff1c6',
+          200: '#ffe088',
+          300: '#ffca4a',
+          400: '#ffb420',
+          500: '#f2b705', // emas papan nama
+          600: '#d18f00',
+          700: '#a66604',
+          800: '#89500c',
+          900: '#74420f'
         }
       },
       fontFamily: {

@@ -5,38 +5,46 @@ import { bodyModels } from '@/lib/db/schema';
 import { SiteFooter, SiteNav } from '@/components/site/SiteNav';
 import { QuoteForm } from '@/components/site/QuoteForm';
 import { COMPANY, whatsappLink } from '@/lib/company';
+import { LogoMark } from '@/components/ui/Logo';
 import { formatIdrShort } from '@/lib/format';
 import { STAGE_TEMPLATES, UNIT_TYPE_LABEL } from '@/lib/karoseri/constants';
 
 export const dynamic = 'force-dynamic';
 
-const SERVICES = [
+/** Tiga lini pekerjaan bengkel, sesuai papan nama dan spanduk di lokasi. */
+const SERVICE_GROUPS = [
   {
     icon: '🚌',
-    title: 'Bodi Bus',
-    text: 'Bus besar high deck & super high deck, bus medium, hingga microbus — lengkap dengan interior, AC, dan kelistrikan.'
-  },
-  {
-    icon: '📦',
-    title: 'Box & Wingbox',
-    text: 'Box besi, box aluminium berpendingin, dan wingbox hidrolik untuk kebutuhan distribusi dan logistik.'
-  },
-  {
-    icon: '🛻',
-    title: 'Dump & Tangki',
-    text: 'Bak dump dengan hidrolik dan PTO, serta tangki bersekat lengkap dengan perpipaan dan pengaman.'
+    title: 'Karoseri',
+    text: 'Pembuatan bodi di atas chassis pilihan Anda.',
+    items: ['Bodi bus besar & medium', 'Microbus', 'Box besi & aluminium', 'Wingbox', 'Dump', 'Tangki']
   },
   {
     icon: '🎨',
-    title: 'Repaint & Perbaikan',
-    text: 'Pengecatan ulang, perbaikan rangka dan bodi, penggantian interior, serta modifikasi sesuai permintaan.'
+    title: 'Body Repair',
+    text: 'Perbaikan dan pengecatan bodi kendaraan.',
+    items: ['Body repair', 'Cat mobil', 'Repaint', 'Refinishing', 'Poles body']
+  },
+  {
+    icon: '🔧',
+    title: 'Service Mobil',
+    text: 'Perawatan berkala sampai perbaikan besar.',
+    items: [
+      'Service mesin & turun mesin',
+      'Tune up',
+      'Ganti oli',
+      'Rem & kaki-kaki',
+      'Transmisi MT/AT',
+      'Service AC',
+      'Scanner mobil'
+    ]
   }
 ];
 
 const ADVANTAGES = [
   {
     title: 'Progres bisa dipantau online',
-    text: 'Setiap unit punya nomor SPK. Pelanggan memantau tahap pengerjaan kapan saja tanpa perlu menelepon bengkel.'
+    text: 'Setiap unit karoseri punya nomor SPK. Pelanggan memantau tahap pengerjaan kapan saja tanpa perlu menelepon bengkel.'
   },
   {
     title: 'Tahapan kerja terukur',
@@ -66,17 +74,20 @@ export default async function HomePage() {
       <main>
         {/* Hero */}
         <section className="relative overflow-hidden bg-slate-900 text-white">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(29,99,240,0.35),transparent_55%),radial-gradient(circle_at_80%_0%,rgba(255,127,17,0.25),transparent_45%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(27,79,216,0.40),transparent_55%),radial-gradient(circle_at_80%_0%,rgba(242,183,5,0.22),transparent_45%)]" />
           <div className="container-page relative grid gap-10 py-20 lg:grid-cols-2 lg:items-center lg:py-28">
             <div>
-              <p className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-quantum-200">
-                {COMPANY.legalName}
-              </p>
+              <span className="inline-flex items-center gap-2.5 rounded-full bg-white/10 py-1.5 pl-1.5 pr-4">
+                <LogoMark className="h-8 w-8" />
+                <span className="text-xs font-semibold uppercase tracking-widest text-gold-300">
+                  {COMPANY.legalName}
+                </span>
+              </span>
               <h1 className="mt-5 text-4xl font-black leading-tight sm:text-5xl">
-                Karoseri bus & kendaraan niaga yang <span className="text-steel-400">bisa Anda pantau</span> sampai
-                serah terima.
+                Karoseri, body repair &amp; service mobil —{' '}
+                <span className="text-gold-400">solusi tepat untuk mobil Anda.</span>
               </h1>
-              <p className="mt-5 max-w-xl text-base text-slate-300">{COMPANY.tagline}</p>
+              <p className="mt-5 max-w-xl text-base text-slate-300">{COMPANY.pitch}</p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a href="#penawaran" className="btn-accent">
                   Minta penawaran
@@ -89,14 +100,14 @@ export default async function HomePage() {
                 </Link>
               </div>
 
-              <dl className="mt-12 grid grid-cols-2 gap-6 sm:grid-cols-4">
-                {COMPANY.stats.map((stat) => (
-                  <div key={stat.label}>
-                    <dt className="text-xs uppercase tracking-wide text-slate-400">{stat.label}</dt>
-                    <dd className="mt-1 text-2xl font-black text-white">{stat.value}</dd>
-                  </div>
+              <ul className="mt-12 flex flex-wrap gap-x-8 gap-y-3">
+                {COMPANY.highlights.map((item) => (
+                  <li key={item.label} className="flex items-center gap-2 text-sm text-slate-300">
+                    <span aria-hidden="true">{item.icon}</span>
+                    {item.label}
+                  </li>
                 ))}
-              </dl>
+              </ul>
             </div>
 
             <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
@@ -125,15 +136,25 @@ export default async function HomePage() {
           <div className="container-page">
             <h2 className="text-3xl font-black text-slate-900 dark:text-white">Layanan kami</h2>
             <p className="mt-2 max-w-2xl text-slate-500 dark:text-slate-400">
-              Pengerjaan bodi di atas chassis pilihan Anda — dari unit tunggal sampai pengadaan armada.
+              Satu bengkel untuk tiga kebutuhan: membangun bodi, memperbaiki bodi, dan merawat mesin.
             </p>
 
-            <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {SERVICES.map((service) => (
+            <div className="mt-10 grid gap-5 md:grid-cols-3">
+              {SERVICE_GROUPS.map((service) => (
                 <div key={service.title} className="card">
                   <span className="text-3xl">{service.icon}</span>
                   <h3 className="mt-3 text-lg font-bold text-slate-900 dark:text-white">{service.title}</h3>
                   <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">{service.text}</p>
+                  <ul className="mt-4 space-y-1.5 border-t border-slate-100 pt-4 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-300">
+                    {service.items.map((item) => (
+                      <li key={item} className="flex gap-2">
+                        <span className="text-gold-500" aria-hidden="true">
+                          ✓
+                        </span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ))}
             </div>
@@ -223,7 +244,12 @@ export default async function HomePage() {
                 ))}
               </div>
 
-              <div className="card mt-6 bg-quantum-600 text-white dark:bg-quantum-700">
+              {/*
+                Sengaja tidak memakai kelas `.card`: `.card` mengunci `bg-white` dan
+                menang atas utility warna, sehingga kartu ini jadi putih dengan teks
+                putih — sama sekali tidak terbaca.
+              */}
+              <div className="mt-6 rounded-2xl bg-quantum-600 p-5 text-white shadow-sm dark:bg-quantum-700">
                 <h3 className="text-lg font-bold">Sudah jadi pelanggan kami?</h3>
                 <p className="mt-1 text-sm text-quantum-100">
                   Cek posisi pengerjaan unit Anda dengan nomor SPK dan nomor rangka.
@@ -248,27 +274,46 @@ export default async function HomePage() {
                 Isi kebutuhan Anda, tim kami menyiapkan rincian harga dan estimasi waktu pengerjaan.
               </p>
 
+              {/* Kontak yang belum diisi di src/lib/company.ts disembunyikan, bukan ditampilkan kosong. */}
               <dl className="mt-8 space-y-4 text-sm">
                 <div>
-                  <dt className="font-semibold text-slate-900 dark:text-white">Telepon</dt>
+                  <dt className="font-semibold text-slate-900 dark:text-white">Telepon / WhatsApp</dt>
                   <dd className="text-slate-500 dark:text-slate-400">{COMPANY.phone}</dd>
                 </div>
-                <div>
-                  <dt className="font-semibold text-slate-900 dark:text-white">Email</dt>
-                  <dd className="text-slate-500 dark:text-slate-400">{COMPANY.email}</dd>
-                </div>
+                {COMPANY.email && (
+                  <div>
+                    <dt className="font-semibold text-slate-900 dark:text-white">Email</dt>
+                    <dd className="text-slate-500 dark:text-slate-400">{COMPANY.email}</dd>
+                  </div>
+                )}
                 <div>
                   <dt className="font-semibold text-slate-900 dark:text-white">Bengkel</dt>
-                  <dd className="text-slate-500 dark:text-slate-400">{COMPANY.address}</dd>
+                  <dd className="text-slate-500 dark:text-slate-400">
+                    {COMPANY.addressLine}
+                    <br />
+                    {COMPANY.addressRegion}
+                  </dd>
+                  <dd className="mt-1">
+                    <a
+                      href={COMPANY.mapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-quantum-600 hover:underline"
+                    >
+                      Buka di Google Maps →
+                    </a>
+                  </dd>
                 </div>
-                <div>
-                  <dt className="font-semibold text-slate-900 dark:text-white">Jam kerja</dt>
-                  <dd className="text-slate-500 dark:text-slate-400">{COMPANY.workingHours}</dd>
-                </div>
+                {COMPANY.workingHours && (
+                  <div>
+                    <dt className="font-semibold text-slate-900 dark:text-white">Jam kerja</dt>
+                    <dd className="text-slate-500 dark:text-slate-400">{COMPANY.workingHours}</dd>
+                  </div>
+                )}
               </dl>
 
               <a
-                href={whatsappLink('Halo, saya ingin konsultasi karoseri.')}
+                href={whatsappLink('Halo, saya ingin konsultasi pengerjaan mobil di Bengkel Quantum.')}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn-accent mt-6"

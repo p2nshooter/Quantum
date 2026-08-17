@@ -63,12 +63,12 @@ export function QuoteForm() {
         <p className="text-3xl">✅</p>
         <h3 className="mt-2 text-lg font-bold text-slate-900 dark:text-white">Permintaan Anda terkirim</h3>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Tim kami akan menghubungi Anda pada jam kerja ({COMPANY.workingHours}). Butuh lebih cepat? Hubungi kami
-          langsung lewat WhatsApp.
+          Tim kami akan menghubungi Anda pada jam kerja{COMPANY.workingHours ? ` (${COMPANY.workingHours})` : ''}. Butuh
+          lebih cepat? Hubungi kami langsung lewat WhatsApp.
         </p>
         <div className="mt-4 flex flex-wrap justify-center gap-2">
           <a
-            href={whatsappLink('Halo, saya baru mengirim permintaan penawaran karoseri.')}
+            href={whatsappLink('Halo, saya baru mengirim permintaan penawaran lewat website.')}
             target="_blank"
             rel="noopener noreferrer"
             className="btn-accent"
@@ -191,7 +191,7 @@ export function QuoteForm() {
           {status === 'sending' ? 'Mengirim…' : 'Kirim permintaan penawaran'}
         </button>
         <a
-          href={whatsappLink('Halo, saya ingin bertanya soal karoseri.')}
+          href={whatsappLink('Halo, saya ingin bertanya soal layanan Bengkel Quantum.')}
           target="_blank"
           rel="noopener noreferrer"
           className="btn-secondary"

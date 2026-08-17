@@ -1,6 +1,6 @@
 export function ProgressBar({ percent, showLabel = true }: { percent: number; showLabel?: boolean }) {
   const value = Math.max(0, Math.min(100, Math.round(percent)));
-  const tone = value >= 100 ? 'bg-emerald-500' : value >= 50 ? 'bg-quantum-600' : 'bg-steel-500';
+  const tone = value >= 100 ? 'bg-emerald-500' : value >= 50 ? 'bg-quantum-600' : 'bg-gold-500';
 
   return (
     <div className="flex items-center gap-2">

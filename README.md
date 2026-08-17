@@ -1,8 +1,14 @@
 # Sistem Karoseri — CV. Quantum Karya Bersama
 
-Aplikasi manajemen produksi karoseri: dari permintaan penawaran, penerbitan SPK, pemantauan
-tahapan pengerjaan tiap unit, sampai pencatatan termin pembayaran — plus halaman publik agar
-pelanggan bisa melacak sendiri progres unitnya.
+Aplikasi manajemen produksi karoseri untuk **CV. Quantum Karya Bersama** (Bengkel Quantum —
+karoseri, body repair & service mobil, Sukakarya, Kabupaten Bekasi): dari permintaan penawaran,
+penerbitan SPK, pemantauan tahapan pengerjaan tiap unit, sampai pencatatan termin pembayaran —
+plus halaman publik agar pelanggan bisa melacak sendiri progres unitnya.
+
+> Catatan cakupan: modul SPK saat ini dirancang untuk **pekerjaan karoseri** (pembuatan bodi yang
+> berlangsung mingguan dan bertahap). Pekerjaan service mobil harian dan body repair sudah tampil
+> sebagai layanan di halaman publik, tapi belum punya alur order sendiri di panel — lihat
+> "Rencana lanjutan" di bawah.
 
 ## Isi sistem
 
@@ -99,10 +105,23 @@ push ke `main`. Secret yang perlu diisi di **Settings → Secrets and variables 
 `seed/seed.sql` sengaja tidak di-commit (ada di `.gitignore`) karena memuat hash password; file
 itu dibuat ulang di CI setiap deploy.
 
-## Yang perlu diisi sebelum situs dipublikasikan
+## Identitas & data perusahaan
 
-Ubah `src/lib/company.ts` — nomor telepon, WhatsApp, email, alamat, dan jam kerja di sana masih
-placeholder. Seluruh halaman publik membaca dari berkas itu, jadi cukup satu tempat.
+Semua teks identitas ada di satu berkas: `src/lib/company.ts` — nama, kontak, alamat, dan daftar
+keunggulan. Data yang sekarang terisi diambil dari papan nama dan spanduk bengkel:
+
+- **CV. Quantum Karya Bersama** — Bengkel Karoseri, Body Repair & Service Mobil
+- Telepon/WhatsApp **0858-8669-2214**
+- Jl. Raya Sukakarya–Sukatani, Kp. Tenjo Laut No. 1, RT 01/01, Desa Sukakarya,
+  Kec. Sukakarya, Kabupaten Bekasi
+
+Logo digambar sebagai SVG inline di `src/components/ui/Logo.tsx` (sabit tiga warna emas–biru–merah
+dengan ekor berkobar) dan dipakai ulang untuk favicon di `src/app/icon.svg`. Karena SVG, logo tetap
+tajam di segala ukuran dan tidak menambah request gambar.
+
+**Masih kosong dan perlu diisi:** `email` dan `workingHours` di `src/lib/company.ts`. Keduanya
+sengaja dibiarkan kosong — halaman otomatis menyembunyikan baris tersebut alih-alih menampilkan
+tebakan yang salah.
 
 ## Struktur proyek
 
@@ -143,3 +162,14 @@ scripts/generate-seed.ts
 - **Menghapus data yang masih dipakai ditolak**, bukan dipaksakan: pelanggan yang masih punya SPK
   dan model yang sudah dipakai SPK tidak bisa dihapus (model cukup dinonaktifkan) supaya riwayat
   produksi tetap utuh.
+
+## Rencana lanjutan
+
+Bengkel ini melayani tiga lini: karoseri, body repair, dan service mobil. Yang sudah bersistem baru
+karoseri. Dua lini lain membutuhkan alur berbeda dan bisa ditambahkan menyusul:
+
+- **Body repair** — mirip karoseri tapi tahapannya lebih pendek (bongkar, ketok, dempul, epoxy,
+  cat, poles, QC) dan sering terkait klaim asuransi, jadi perlu field nomor polis/surveyor.
+- **Service mobil** — pekerjaan harian yang selesai dalam hitungan jam, jadi lebih cocok memakai
+  order servis sederhana (keluhan, pekerjaan, sparepart, mekanik, biaya) ketimbang SPK bertahap;
+  perlu juga riwayat servis per nomor polisi dan pengingat servis berikutnya.

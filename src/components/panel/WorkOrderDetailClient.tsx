@@ -369,7 +369,7 @@ function PaymentSection({
           <p className="text-xs text-slate-400">Sisa tagihan</p>
           <p
             className={`text-lg font-black tabular-nums ${
-              detail.outstanding > 0 ? 'text-steel-600 dark:text-steel-400' : 'text-emerald-600 dark:text-emerald-400'
+              detail.outstanding > 0 ? 'text-gold-600 dark:text-gold-400' : 'text-emerald-600 dark:text-emerald-400'
             }`}
           >
             {formatIdr(detail.outstanding)}

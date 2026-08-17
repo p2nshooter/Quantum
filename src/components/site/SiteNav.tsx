@@ -1,20 +1,13 @@
 import Link from 'next/link';
 import { COMPANY } from '@/lib/company';
+import { LogoWordmark } from '@/components/ui/Logo';
 
 export function SiteNav() {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
       <div className="container-page flex h-16 items-center justify-between gap-4">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-quantum-600 text-lg font-black text-white">
-            Q
-          </span>
-          <span className="leading-tight">
-            <span className="block text-sm font-black tracking-tight text-slate-900 dark:text-white">QUANTUM</span>
-            <span className="block text-[10px] font-semibold uppercase tracking-widest text-quantum-600">
-              Karya Bersama
-            </span>
-          </span>
+        <Link href="/" aria-label={COMPANY.legalName}>
+          <LogoWordmark />
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex dark:text-slate-300">
@@ -50,7 +43,8 @@ export function SiteFooter() {
     <footer className="border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
       <div className="container-page grid gap-8 py-12 sm:grid-cols-2 lg:grid-cols-4">
         <div className="sm:col-span-2">
-          <p className="text-lg font-black text-slate-900 dark:text-white">{COMPANY.legalName}</p>
+          <LogoWordmark />
+          <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{COMPANY.legalName}</p>
           <p className="mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">{COMPANY.description}</p>
         </div>
 
@@ -58,14 +52,18 @@ export function SiteFooter() {
           <p className="text-sm font-semibold text-slate-900 dark:text-white">Kontak</p>
           <ul className="mt-3 space-y-2 text-sm text-slate-500 dark:text-slate-400">
             <li>{COMPANY.phone}</li>
-            <li>{COMPANY.email}</li>
-            <li>{COMPANY.workingHours}</li>
+            {COMPANY.email && <li>{COMPANY.email}</li>}
+            {COMPANY.workingHours && <li>{COMPANY.workingHours}</li>}
           </ul>
         </div>
 
         <div>
           <p className="text-sm font-semibold text-slate-900 dark:text-white">Alamat</p>
-          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{COMPANY.address}</p>
+          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+            {COMPANY.addressLine}
+            <br />
+            {COMPANY.addressRegion}
+          </p>
           <Link href="/lacak" className="mt-3 inline-block text-sm font-semibold text-quantum-600 hover:underline">
             Lacak progres unit →
           </Link>

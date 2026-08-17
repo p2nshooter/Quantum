@@ -11,7 +11,7 @@ export function StatCard({
 }) {
   const valueTone =
     tone === 'warning'
-      ? 'text-steel-600 dark:text-steel-400'
+      ? 'text-gold-600 dark:text-gold-400'
       : tone === 'success'
         ? 'text-emerald-600 dark:text-emerald-400'
         : 'text-slate-900 dark:text-white';

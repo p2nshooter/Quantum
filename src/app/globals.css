@@ -23,7 +23,7 @@ body {
 }
 
 .btn-accent {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-steel-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-steel-600 disabled:cursor-not-allowed disabled:opacity-60;
+  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gold-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-gold-600 disabled:cursor-not-allowed disabled:opacity-60;
 }
 
 .card {
