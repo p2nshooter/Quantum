@@ -4,19 +4,27 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import type { SessionUser } from '@/lib/auth/session';
-import { USER_ROLE_LABEL } from '@/lib/karoseri/constants';
+import { REPORT_ROLES, USER_ROLE_LABEL, type UserRole } from '@/lib/karoseri/constants';
 import { LogoMark } from '@/components/ui/Logo';
 
-type NavItem = { href: string; label: string; icon: string; adminOnly?: boolean; exact?: boolean };
+type NavItem = {
+  href: string;
+  label: string;
+  icon: string;
+  /** Peran yang boleh melihat menu ini. Kosong berarti semua peran. */
+  roles?: UserRole[];
+  exact?: boolean;
+};
 
 const NAV: NavItem[] = [
-  { href: '/panel', label: 'Dashboard', icon: '📊', exact: true },
-  { href: '/panel/spk', label: 'SPK & Unit', icon: '🚌' },
-  { href: '/panel/pelanggan', label: 'Pelanggan', icon: '🤝' },
-  { href: '/panel/model', label: 'Model Bodi', icon: '📐' },
-  { href: '/panel/penawaran', label: 'Permintaan Penawaran', icon: '📨' },
-  { href: '/panel/pengguna', label: 'Pengguna', icon: '👥', adminOnly: true },
-  { href: '/panel/aktivitas', label: 'Log Aktivitas', icon: '🧾', adminOnly: true },
+  { href: '/panel', label: 'Dashboard', icon: '📊', exact: true, roles: ['admin', 'produksi', 'keuangan'] },
+  { href: '/panel/laporan', label: 'Laporan Keuangan', icon: '📈', roles: REPORT_ROLES },
+  { href: '/panel/spk', label: 'SPK & Unit', icon: '🚌', roles: ['admin', 'produksi', 'keuangan'] },
+  { href: '/panel/pelanggan', label: 'Pelanggan', icon: '🤝', roles: ['admin', 'produksi', 'keuangan'] },
+  { href: '/panel/model', label: 'Model Bodi', icon: '📐', roles: ['admin', 'produksi'] },
+  { href: '/panel/penawaran', label: 'Permintaan Penawaran', icon: '📨', roles: ['admin', 'produksi', 'keuangan'] },
+  { href: '/panel/pengguna', label: 'Pengguna', icon: '👥', roles: ['admin'] },
+  { href: '/panel/aktivitas', label: 'Log Aktivitas', icon: '🧾', roles: ['admin'] },
   { href: '/panel/akun', label: 'Akun Saya', icon: '⚙️' }
 ];
 
@@ -25,7 +33,9 @@ export function PanelShell({ user, children }: { user: SessionUser; children: Re
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const items = NAV.filter((item) => !item.adminOnly || user.role === 'admin');
+  // Pemilik hanya melihat menu laporan dan akunnya sendiri — menu operasional
+  // tidak ditampilkan sama sekali, bukan sekadar diblokir saat diklik.
+  const items = NAV.filter((item) => !item.roles || item.roles.includes(user.role));
 
   function isActive(item: NavItem) {
     if (item.exact) return pathname === item.href;

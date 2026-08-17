@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, gte, inArray, isNull, lte, ne, sql } from 'drizzle-orm';
+import type { SQLiteColumn } from 'drizzle-orm/sqlite-core';
 import { getDb } from '@/lib/db/client';
 import {
   capitalEntries,
@@ -578,4 +579,154 @@ export async function getOwnerSummary(period: Period) {
   ]);
 
   return { profitLoss, receivables, payables, cashFlow, inventory };
+}
+
+export type CashBookRow = {
+  date: Date;
+  description: string;
+  reference: string;
+  inIdr: number;
+  outIdr: number;
+  balanceIdr: number;
+};
+
+/**
+ * Buku kas: seluruh perpindahan uang dalam periode, urut tanggal, dengan saldo
+ * berjalan — bentuk yang sama dengan buku kas manual yang dipakai bengkel.
+ *
+ * Saldo baris pertama meneruskan saldo akhir sebelum periode, bukan mulai dari
+ * nol, supaya buku kas bulan ini nyambung dengan bulan sebelumnya.
+ */
+export async function getCashBook(period: Period): Promise<{
+  openingBalance: number;
+  rows: CashBookRow[];
+  totalIn: number;
+  totalOut: number;
+  closingBalance: number;
+}> {
+  const db = await getDb();
+  const settings = await getSettings();
+  const before = await sumCashMovement(null, new Date(period.from.getTime() - 1));
+  const openingBalance = settings.openingCashIdr + before.inflowTotal - before.outflowTotal;
+
+  // Kolom tanggal yang boleh null (mis. expenses.paidAt) tetap aman: baris tanpa
+  // tanggal otomatis tidak lolos perbandingan, jadi biaya yang belum dibayar
+  // tidak pernah muncul di buku kas.
+  const inRange = (column: SQLiteColumn) => and(gte(column, period.from), lte(column, period.to));
+
+  const [paymentRows, capitalRows, purchaseRows, expenseRows] = await Promise.all([
+    db
+      .select({
+        paidAt: payments.paidAt,
+        label: payments.label,
+        refType: payments.refType,
+        refId: payments.refId,
+        amountIdr: payments.amountIdr,
+        reference: payments.reference
+      })
+      .from(payments)
+      .where(inRange(payments.paidAt)),
+    db
+      .select({
+        entryAt: capitalEntries.entryAt,
+        type: capitalEntries.type,
+        ownerName: capitalEntries.ownerName,
+        amountIdr: capitalEntries.amountIdr,
+        notes: capitalEntries.notes
+      })
+      .from(capitalEntries)
+      .where(inRange(capitalEntries.entryAt)),
+    db
+      .select({
+        purchasedAt: purchases.purchasedAt,
+        purchaseNumber: purchases.purchaseNumber,
+        supplierName: purchases.supplierName,
+        paidIdr: purchases.paidIdr,
+        invoiceNumber: purchases.invoiceNumber
+      })
+      .from(purchases)
+      .where(and(inRange(purchases.purchasedAt), sql`${purchases.paidIdr} > 0`)),
+    db
+      .select({
+        paidAt: expenses.paidAt,
+        category: expenses.category,
+        description: expenses.description,
+        amountIdr: expenses.amountIdr
+      })
+      .from(expenses)
+      .where(inRange(expenses.paidAt))
+  ]);
+
+  const raw: Omit<CashBookRow, 'balanceIdr'>[] = [];
+
+  for (const row of paymentRows) {
+    raw.push({
+      date: row.paidAt,
+      description: `Pembayaran ${row.refType === 'work_order' ? 'SPK' : 'servis'} — ${row.label}`,
+      reference: row.reference ?? '',
+      inIdr: row.amountIdr,
+      outIdr: 0
+    });
+  }
+  for (const row of capitalRows) {
+    const isDeposit = row.type === 'setoran';
+    raw.push({
+      date: row.entryAt,
+      description: `${isDeposit ? 'Setoran modal' : 'Penarikan modal (prive)'} — ${row.ownerName}`,
+      reference: row.notes ?? '',
+      inIdr: isDeposit ? row.amountIdr : 0,
+      outIdr: isDeposit ? 0 : row.amountIdr
+    });
+  }
+  for (const row of purchaseRows) {
+    raw.push({
+      date: row.purchasedAt,
+      description: `Pembelian barang — ${row.supplierName ?? 'supplier'}`,
+      reference: row.invoiceNumber ?? row.purchaseNumber,
+      inIdr: 0,
+      outIdr: row.paidIdr
+    });
+  }
+  for (const row of expenseRows) {
+    if (!row.paidAt) continue;
+    raw.push({
+      date: row.paidAt,
+      description: `${EXPENSE_CATEGORY_LABEL[row.category] ?? row.category} — ${row.description}`,
+      reference: '',
+      inIdr: 0,
+      outIdr: row.amountIdr
+    });
+  }
+
+  raw.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  let balance = openingBalance;
+  const rows: CashBookRow[] = raw.map((row) => {
+    balance += row.inIdr - row.outIdr;
+    return { ...row, balanceIdr: balance };
+  });
+
+  return {
+    openingBalance,
+    rows,
+    totalIn: rows.reduce((sum, r) => sum + r.inIdr, 0),
+    totalOut: rows.reduce((sum, r) => sum + r.outIdr, 0),
+    closingBalance: balance
+  };
+}
+
+/**
+ * Laporan pemasukan & pengeluaran: dua kolom terpisah seperti formulir cetak
+ * bengkel. Sumbernya sama dengan buku kas, hanya penyajiannya yang dipisah.
+ */
+export async function getIncomeExpenseReport(period: Period) {
+  const book = await getCashBook(period);
+  return {
+    period,
+    income: book.rows.filter((r) => r.inIdr > 0).map((r) => ({ ...r, amountIdr: r.inIdr })),
+    expense: book.rows.filter((r) => r.outIdr > 0).map((r) => ({ ...r, amountIdr: r.outIdr })),
+    totalIncome: book.totalIn,
+    totalExpense: book.totalOut,
+    netIdr: book.totalIn - book.totalOut
+  };
 }

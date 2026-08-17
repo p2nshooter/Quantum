@@ -340,7 +340,7 @@ const expenseRows = [
   ['demo_exp_gaji', 'gaji_upah', 'Gaji 4 mekanik bulan berjalan', 14_000_000, 5, daysAgo(5)],
   ['demo_exp_listrik', 'listrik_air', 'Listrik & air bengkel', 1_850_000, 6, daysAgo(6)],
   ['demo_exp_sewa', 'sewa_tempat', 'Sewa lahan bengkel', 5_000_000, 7, daysAgo(7)],
-  ['demo_exp_bahan', 'bahan_produksi', 'Plat besi & cat untuk SPK box', 18_500_000, 30, daysAgo(30)]
+  ['demo_exp_bahan', 'bahan_produksi', 'Plat besi & cat untuk SPK box', 18_500_000, 14, daysAgo(14)]
 ] as const;
 
 for (const [id, category, description, amount, , spentAt] of expenseRows) {

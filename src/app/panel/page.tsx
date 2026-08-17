@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { getCurrentUser } from '@/lib/auth/session';
 import { getDashboardStats, getStageWorkload } from '@/lib/data/dashboard';
 import { listWorkOrders } from '@/lib/data/work-orders';
 import { StatCard } from '@/components/ui/StatCard';
@@ -8,8 +10,13 @@ import { formatDate, formatIdrShort, daysUntil } from '@/lib/format';
 import { ACTIVE_STATUSES, UNIT_TYPE_LABEL } from '@/lib/karoseri/constants';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function PanelDashboardPage() {
+  // Pemilik tidak punya urusan dengan dashboard produksi; halaman depannya adalah laporan.
+  const user = await getCurrentUser();
+  if (user?.role === 'bos') redirect('/panel/laporan');
+
   const [stats, workload, activeOrders] = await Promise.all([
     getDashboardStats(),
     getStageWorkload(),

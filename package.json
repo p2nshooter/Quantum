@@ -24,27 +24,28 @@
     "db:demo:remote": "wrangler d1 execute quantum_db --remote --file=./seed/demo.sql"
   },
   "dependencies": {
+    "drizzle-orm": "0.33.0",
+    "nanoid": "5.0.7",
     "next": "15.5.20",
+    "pdf-lib": "^1.17.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "zod": "3.23.8",
-    "drizzle-orm": "0.33.0",
-    "nanoid": "5.0.7"
+    "zod": "3.23.8"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "1.20.1",
     "@cloudflare/workers-types": "4.20260702.1",
-    "typescript": "5.6.3",
-    "tailwindcss": "3.4.13",
-    "postcss": "8.4.47",
-    "autoprefixer": "10.4.20",
+    "@opennextjs/cloudflare": "1.20.1",
     "@types/node": "20.16.11",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "autoprefixer": "10.4.20",
     "drizzle-kit": "0.24.2",
-    "tsx": "4.19.1",
-    "wrangler": "4.107.0",
     "eslint": "8.57.1",
-    "eslint-config-next": "15.5.20"
+    "eslint-config-next": "15.5.20",
+    "postcss": "8.4.47",
+    "tailwindcss": "3.4.13",
+    "tsx": "4.19.1",
+    "typescript": "5.6.3",
+    "wrangler": "4.107.0"
   }
 }

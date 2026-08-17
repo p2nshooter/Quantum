@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth/session';
 import { PanelShell } from '@/components/panel/PanelShell';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   // Middleware hanya mengecek keberadaan cookie; pengecekan sesungguhnya
