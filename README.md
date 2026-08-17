@@ -87,29 +87,47 @@ npm run cf:build && npx wrangler dev   # jalankan seperti di Cloudflare (D1/KV a
 `npm run dev` (Next dev biasa) tidak punya binding D1, jadi halaman yang membaca database akan
 error — pakai `wrangler dev` untuk pengembangan sehari-hari.
 
-## Setup Cloudflare (sekali saja)
+## Membuat sistem online
+
+Ada dua jalan, pilih salah satu. Keduanya menghasilkan alamat publik gratis
+`https://quantum-karoseri.<subdomain>.workers.dev` — tidak perlu beli domain dulu.
+
+**A. Dari komputer sendiri (paling cepat)**
 
 ```bash
-wrangler login
-wrangler d1 create quantum_db          # salin database_id ke wrangler.jsonc
-wrangler kv namespace create QUANTUM_KV # salin id ke wrangler.jsonc
-wrangler r2 bucket create quantum-assets
+npx wrangler login              # sekali saja, membuka browser
+bash scripts/setup-cloudflare.sh
 ```
 
-Dua nilai bertanda `REPLACE_WITH_...` di `wrangler.jsonc` wajib diganti sebelum deploy pertama.
+Skrip itu membuat D1 + KV, menuliskan id-nya ke `wrangler.jsonc`, migrasi, mengisi data awal,
+lalu deploy. Alamat publiknya tercetak di baris terakhir.
 
-## Deploy otomatis (GitHub Actions)
+**B. Lewat GitHub Actions (tanpa menyentuh terminal)**
 
-`.github/workflows/deploy.yml` menjalankan typecheck → build → migrasi D1 → seed → deploy setiap
-push ke `main`. Secret yang perlu diisi di **Settings → Secrets and variables → Actions**:
+Isi dua secret di **Settings → Secrets and variables → Actions**, lalu jalankan workflow
+*Deploy to Cloudflare* (tab **Actions** → **Run workflow**) atau merge ke `main`:
 
-| Secret | Wajib | Keterangan |
-|---|---|---|
-| `CLOUDFLARE_API_TOKEN` | ya | Izin **Workers Scripts: Edit**, **D1: Edit**, **Workers KV Storage: Edit** |
-| `CLOUDFLARE_ACCOUNT_ID` | ya | Account ID Cloudflare |
-| `ADMIN_BOOTSTRAP_EMAIL` | disarankan | Email admin pertama |
-| `ADMIN_BOOTSTRAP_PASSWORD` | disarankan | Password admin pertama — hanya hash PBKDF2-nya yang masuk database |
-| `NOTIFY_WEBHOOK_URL` | tidak | Webhook notifikasi saat ada permintaan penawaran masuk |
+| Secret | Isi |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | Token dengan izin **Workers Scripts: Edit**, **D1: Edit**, **Workers KV Storage: Edit** |
+| `CLOUDFLARE_ACCOUNT_ID` | Account ID Cloudflare |
+
+Workflow-nya membuat sendiri D1 dan KV bila belum ada, jadi deploy pertama tidak perlu bootstrap
+manual. Alamat publiknya muncul di ringkasan run.
+
+> Nilai `REPLACE_WITH_...` di `wrangler.jsonc` sengaja dibiarkan di repo: keduanya diisi otomatis
+> saat bootstrap, dan id resource tidak perlu ikut ter-commit.
+
+### Secret tambahan (opsional)
+
+Selain dua secret wajib di atas, `.github/workflows/deploy.yml` — yang menjalankan typecheck →
+siapkan D1/KV → build → migrasi → seed → deploy pada setiap push ke `main` — juga membaca:
+
+| Secret | Keterangan |
+|---|---|
+| `ADMIN_BOOTSTRAP_EMAIL` | Email admin pertama (bawaan: `admin@quantumkaryabersama.co.id`) |
+| `ADMIN_BOOTSTRAP_PASSWORD` | Password admin pertama — hanya hash PBKDF2-nya yang masuk database |
+| `NOTIFY_WEBHOOK_URL` | Webhook notifikasi saat ada permintaan penawaran masuk |
 
 `seed/seed.sql` sengaja tidak di-commit (ada di `.gitignore`) karena memuat hash password; file
 itu dibuat ulang di CI setiap deploy.

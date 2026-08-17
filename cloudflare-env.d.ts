@@ -4,7 +4,6 @@ declare global {
   interface CloudflareEnv {
     DB: D1Database;
     QUANTUM_KV: KVNamespace;
-    ASSETS_BUCKET?: R2Bucket;
 
     APP_URL?: string;
 

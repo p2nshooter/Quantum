@@ -28,6 +28,15 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      # Membuat D1 + KV bila belum ada lalu menuliskan id-nya ke wrangler.jsonc
+      # milik checkout ini (tidak di-commit). Jadi deploy pertama cukup berbekal
+      # dua secret Cloudflare — tanpa perlu bootstrap manual dari laptop dulu.
+      - name: Prepare Cloudflare resources
+        run: bash scripts/ensure-cloudflare-resources.sh
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
       - name: Build for Cloudflare
         run: npm run cf:build
 
@@ -57,10 +66,26 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy Worker
-        run: npx wrangler deploy
+        id: deploy
+        run: npx wrangler deploy | tee deploy.log
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Alamat publiknya ditaruh di ringkasan run supaya tidak perlu diubek dari
+      # log — ini satu-satunya keluaran yang dicari orang setelah deploy.
+      - name: Publish URL to summary
+        if: always()
+        run: |
+          URL="$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -1 || true)"
+          if [ -n "$URL" ]; then
+            echo "## Sistem sudah online" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Situs publik: $URL" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Panel internal: $URL/login" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "URL workers.dev tidak ditemukan di log deploy." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       # Secret opsional; dilewati diam-diam bila belum diisi di GitHub.
       - name: Sync optional Worker secrets

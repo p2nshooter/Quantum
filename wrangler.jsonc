@@ -23,12 +23,6 @@
       "migrations_dir": "migrations"
     }
   ],
-  "r2_buckets": [
-    {
-      "binding": "ASSETS_BUCKET",
-      "bucket_name": "quantum-assets"
-    }
-  ],
   "kv_namespaces": [
     {
       "binding": "QUANTUM_KV",
