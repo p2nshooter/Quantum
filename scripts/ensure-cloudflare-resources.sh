@@ -54,17 +54,41 @@ uuid_from() {
 
 if grep -q 'REPLACE_WITH_D1_DATABASE_ID' "$CONFIG"; then
   echo "==> Menyiapkan database D1 '$D1_NAME'"
-  # `d1 create` gagal kalau databasenya sudah ada, jadi hasilnya diabaikan dan
-  # id-nya diambil dari daftar — jalur yang sama untuk database baru maupun lama.
-  npx wrangler d1 create "$D1_NAME" $WRANGLER_TEMP_FLAG 2>&1 || true
-  DB_ID="$(npx wrangler d1 list --json $WRANGLER_TEMP_FLAG 2>/dev/null | node -e "
-    let s='';
-    process.stdin.on('data', (d) => (s += d)).on('end', () => {
-      const list = JSON.parse(s.trim() || '[]');
-      const db = list.find((x) => x.name === '$D1_NAME');
-      process.stdout.write(db ? db.uuid : '');
-    });
-  ")"
+  # Database baru: id-nya sudah tercetak di keluaran `d1 create`, jadi dipungut
+  # dari situ dan `d1 list` tidak perlu dipanggil sama sekali. Penting untuk
+  # akun sementara, yang setiap pemanggilan wrangler-nya berbiaya mahal.
+  D1_OUTPUT="$(npx wrangler d1 create "$D1_NAME" $WRANGLER_TEMP_FLAG 2>&1 || true)"
+  echo "$D1_OUTPUT"
+  DB_ID="$(uuid_from "$D1_OUTPUT")"
+
+  # Akun sementara hanya bisa diklaim dalam 60 menit. Tautannya dinaikkan ke
+  # ringkasan run sekarang juga — kalau menunggu langkah deploy, tautan itu ikut
+  # hilang setiap kali ada langkah di tengah yang gagal.
+  CLAIM_URL="$(grep -oE 'https://dash\.cloudflare\.com/claim[^ ]*' <<<"$D1_OUTPUT" | head -1 || true)"
+  if [ -n "$CLAIM_URL" ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+    {
+      echo "**Akun sementara Cloudflare — klaim dalam 60 menit:**"
+      echo ""
+      echo "$CLAIM_URL"
+      echo ""
+    } >> "$GITHUB_STEP_SUMMARY"
+  fi
+
+  # Database yang sudah ada: `d1 create` menolak, jadi id-nya dicari di daftar.
+  if [ -z "$DB_ID" ]; then
+    DB_ID="$(npx wrangler d1 list --json $WRANGLER_TEMP_FLAG 2>/dev/null | node -e "
+      let s='';
+      process.stdin.on('data', (d) => (s += d)).on('end', () => {
+        // Wrangler menyisipkan spanduk (mis. \"Temporary account ready\") sebelum
+        // JSON-nya, jadi teks sebelum kurung siku pertama harus dibuang dulu.
+        const start = s.indexOf('[');
+        const list = start === -1 ? [] : JSON.parse(s.slice(start).trim() || '[]');
+        const db = list.find((x) => x.name === '$D1_NAME');
+        process.stdout.write(db ? db.uuid : '');
+      });
+    ")"
+  fi
+
   if [ -z "$DB_ID" ]; then
     echo "Gagal mendapatkan database_id untuk '$D1_NAME'." >&2
     exit 1
