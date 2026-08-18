@@ -17,21 +17,19 @@ CONFIG="wrangler.jsonc"
 D1_NAME="quantum_db"
 KV_BINDING="QUANTUM_KV"
 
-# Diisi "--temporary" untuk deploy ke akun sementara Cloudflare (tanpa login).
-# Wrangler mencetak claim URL supaya deployment-nya bisa dipindah ke akun sendiri.
-WRANGLER_TEMP_FLAG="${WRANGLER_TEMP_FLAG:-}"
-
 # Tanpa kredensial, wrangler gagal dengan pesan panjang lalu perintah berikutnya
 # menerima keluaran kosong — dulu itu muncul sebagai "Unexpected end of JSON
 # input" yang tidak memberi petunjuk apa pun. Dicek di depan supaya jelas.
-if [ -z "$WRANGLER_TEMP_FLAG" ] && [ -z "${CLOUDFLARE_API_TOKEN:-}" ] && ! npx wrangler whoami >/dev/null 2>&1; then
+if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] && ! npx wrangler whoami >/dev/null 2>&1; then
   cat >&2 <<'MSG'
 Belum ada kredensial Cloudflare.
 
   - Di GitHub Actions : isi secret CLOUDFLARE_API_TOKEN dan CLOUDFLARE_ACCOUNT_ID.
   - Di komputer sendiri: jalankan `npx wrangler login` lebih dulu.
-  - Tanpa akun sama sekali: set WRANGLER_TEMP_FLAG=--temporary untuk memakai
-    akun sementara Cloudflare (nanti ada claim URL untuk memindahkannya).
+
+Akun sementara `wrangler --temporary` TIDAK bisa dipakai untuk proyek ini:
+tokennya terbit tanpa scope apa pun, sehingga pembuatan D1 maupun KV ditolak
+dengan "Authentication error [code: 10000]". Sudah dicoba dan gagal.
 MSG
   exit 1
 fi
@@ -55,32 +53,18 @@ uuid_from() {
 if grep -q 'REPLACE_WITH_D1_DATABASE_ID' "$CONFIG"; then
   echo "==> Menyiapkan database D1 '$D1_NAME'"
   # Database baru: id-nya sudah tercetak di keluaran `d1 create`, jadi dipungut
-  # dari situ dan `d1 list` tidak perlu dipanggil sama sekali. Penting untuk
-  # akun sementara, yang setiap pemanggilan wrangler-nya berbiaya mahal.
-  D1_OUTPUT="$(npx wrangler d1 create "$D1_NAME" $WRANGLER_TEMP_FLAG 2>&1 || true)"
+  # dari situ dan `d1 list` tidak perlu dipanggil sama sekali.
+  D1_OUTPUT="$(npx wrangler d1 create "$D1_NAME" 2>&1 || true)"
   echo "$D1_OUTPUT"
   DB_ID="$(uuid_from "$D1_OUTPUT")"
 
-  # Akun sementara hanya bisa diklaim dalam 60 menit. Tautannya dinaikkan ke
-  # ringkasan run sekarang juga — kalau menunggu langkah deploy, tautan itu ikut
-  # hilang setiap kali ada langkah di tengah yang gagal.
-  CLAIM_URL="$(grep -oE 'https://dash\.cloudflare\.com/claim[^ ]*' <<<"$D1_OUTPUT" | head -1 || true)"
-  if [ -n "$CLAIM_URL" ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-    {
-      echo "**Akun sementara Cloudflare — klaim dalam 60 menit:**"
-      echo ""
-      echo "$CLAIM_URL"
-      echo ""
-    } >> "$GITHUB_STEP_SUMMARY"
-  fi
-
   # Database yang sudah ada: `d1 create` menolak, jadi id-nya dicari di daftar.
   if [ -z "$DB_ID" ]; then
-    DB_ID="$(npx wrangler d1 list --json $WRANGLER_TEMP_FLAG 2>/dev/null | node -e "
+    DB_ID="$(npx wrangler d1 list --json 2>/dev/null | node -e "
       let s='';
       process.stdin.on('data', (d) => (s += d)).on('end', () => {
-        // Wrangler menyisipkan spanduk (mis. \"Temporary account ready\") sebelum
-        // JSON-nya, jadi teks sebelum kurung siku pertama harus dibuang dulu.
+        // Wrangler kadang menyisipkan spanduk sebelum JSON-nya, jadi teks
+        // sebelum kurung siku pertama dibuang dulu.
         const start = s.indexOf('[');
         const list = start === -1 ? [] : JSON.parse(s.slice(start).trim() || '[]');
         const db = list.find((x) => x.name === '$D1_NAME');
@@ -101,7 +85,7 @@ fi
 
 if grep -q 'REPLACE_WITH_KV_NAMESPACE_ID' "$CONFIG"; then
   echo "==> Menyiapkan namespace KV '$KV_BINDING'"
-  KV_OUTPUT="$(npx wrangler kv namespace create "$KV_BINDING" $WRANGLER_TEMP_FLAG 2>&1 || true)"
+  KV_OUTPUT="$(npx wrangler kv namespace create "$KV_BINDING" 2>&1 || true)"
   echo "$KV_OUTPUT"
   KV_ID="$(uuid_from "$KV_OUTPUT")"
   # Wrangler mencetak id KV tanpa tanda hubung, sementara `kv namespace list`
@@ -110,7 +94,7 @@ if grep -q 'REPLACE_WITH_KV_NAMESPACE_ID' "$CONFIG"; then
     KV_ID="$(grep -oE '[0-9a-f]{32}' <<<"$KV_OUTPUT" | head -1 || true)"
   fi
   if [ -z "$KV_ID" ]; then
-    KV_ID="$(npx wrangler kv namespace list $WRANGLER_TEMP_FLAG 2>/dev/null | node -e "
+    KV_ID="$(npx wrangler kv namespace list 2>/dev/null | node -e "
       let s='';
       process.stdin.on('data', (d) => (s += d)).on('end', () => {
         const start = s.indexOf('[');
