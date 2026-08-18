@@ -115,6 +115,13 @@ Isi dua secret di **Settings → Secrets and variables → Actions**, lalu jalan
 Workflow-nya membuat sendiri D1 dan KV bila belum ada, jadi deploy pertama tidak perlu bootstrap
 manual. Alamat publiknya muncul di ringkasan run.
 
+**C. Belum punya akun Cloudflare sama sekali**
+
+Jalankan workflow *Deploy to Cloudflare* dengan pilihan **temporary** dicentang. Wrangler memakai
+akun sementara, dan ringkasan run memuat *claim URL* — buka tautan itu untuk memindahkan
+deployment-nya ke akun sendiri. Selama belum diklaim, deployment-nya bisa hilang sewaktu-waktu,
+jadi pakai jalur ini untuk mencoba dulu, bukan untuk dipakai bengkel sehari-hari.
+
 > Nilai `REPLACE_WITH_...` di `wrangler.jsonc` sengaja dibiarkan di repo: keduanya diisi otomatis
 > saat bootstrap, dan id resource tidak perlu ikut ter-commit.
 
